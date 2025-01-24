@@ -4,6 +4,11 @@
 #include "Input.h"
 #include "PathHelpers.h"
 #include "Window.h"
+// This code assumes files are in "ImGui" subfolder!
+// Adjust as necessary for your own folder structure and project setup
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_dx11.h"
+#include "ImGui/imgui_impl_win32.h"
 
 #include <DirectXMath.h>
 
@@ -20,6 +25,17 @@ using namespace DirectX;
 // --------------------------------------------------------
 void Game::Initialize()
 {
+	// Initialize ImGui itself & platform/renderer backends
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplWin32_Init(Window::Handle());
+	ImGui_ImplDX11_Init(Graphics::Device.Get(), Graphics::Context.Get());
+	// Pick a style (uncomment one of these 3)
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsLight();
+	//ImGui::StyleColorsClassic();
+
+
 	// Helper methods for loading shaders, creating some basic
 	// geometry to draw and some simple camera matrices.
 	//  - You'll be expanding and/or replacing these later
@@ -58,7 +74,10 @@ void Game::Initialize()
 // --------------------------------------------------------
 Game::~Game()
 {
-
+	// ImGui clean up
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 }
 
 
@@ -240,11 +259,65 @@ void Game::OnResize()
 // --------------------------------------------------------
 void Game::Update(float deltaTime, float totalTime)
 {
+	ImGuiUpdate(deltaTime);
+	BuildUI();
+
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 }
 
+void Game::ImGuiUpdate(float deltaTime)
+{
+	// Put this all in a helper method that is called from Game::Update()
+	// Feed fresh data to ImGui
+	ImGuiIO& io = ImGui::GetIO();
+	io.DeltaTime = deltaTime;
+	io.DisplaySize.x = (float)Window::Width();
+	io.DisplaySize.y = (float)Window::Height();
+	// Reset the frame
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	// Determine new input capture
+	Input::SetKeyboardCapture(io.WantCaptureKeyboard);
+	Input::SetMouseCapture(io.WantCaptureMouse);
+	// Show the demo window
+	//ImGui::ShowDemoWindow();
+}
+
+void Game::BuildUI()
+{
+	ImGui::Begin("My First Window"); // Everything after is part of the window
+	ImGui::Text("This text is in the window");
+	ImGui::Text("Framerate: %f fps", ImGui::GetIO().Framerate);
+	ImGui::Text("Window Size: %dx%d", Window::Width(), Window::Height());
+
+	ImGui::ColorEdit4("Background Color", color);
+
+	if (ImGui::Button("Show ImGui Window"))
+	{
+		demoWindowVisible = !demoWindowVisible;
+	}
+
+	if (demoWindowVisible)
+	{
+		ImGui::ShowDemoWindow();
+	}
+
+	if (ImGui::CollapsingHeader("Random Stuff"))
+	{
+		if (ImGui::Button("Increment Bar"))
+		{
+			progress += 0.1f;
+
+			if (progress > 1.0f) progress = 0.0f;
+		}
+		ImGui::ProgressBar(progress, ImVec2(0.0f, 0.0f), "Progress");
+	}
+
+	ImGui::End(); // Ends the current window
+}
 
 // --------------------------------------------------------
 // Clear the screen, redraw everything, present to the user
@@ -256,7 +329,6 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
 		// Clear the back buffer (erase what's on screen) and depth buffer
-		const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
 		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
@@ -293,6 +365,8 @@ void Game::Draw(float deltaTime, float totalTime)
 	{
 		// Present at the end of the frame
 		bool vsync = Graphics::VsyncState();
+		ImGui::Render(); // Turns this frame’s UI into renderable triangles
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData()); // Draws it to the screen
 		Graphics::SwapChain->Present(
 			vsync ? 1 : 0,
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
