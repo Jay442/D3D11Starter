@@ -2,6 +2,8 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
+#include "Mesh.h"
+#include <memory>
 
 class Game
 {
@@ -21,7 +23,7 @@ public:
 private:
 	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
 	bool demoWindowVisible;
-	float progress = 0.0f; 
+	float progress = 0.0f;
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void LoadShaders();
@@ -42,5 +44,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
+	std::shared_ptr<Mesh> triangle;
+	std::shared_ptr<Mesh> square;
+	std::shared_ptr<Mesh> pentagon;
 };
 

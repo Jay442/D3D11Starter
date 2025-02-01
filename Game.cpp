@@ -4,8 +4,6 @@
 #include "Input.h"
 #include "PathHelpers.h"
 #include "Window.h"
-// This code assumes files are in "ImGui" subfolder!
-// Adjust as necessary for your own folder structure and project setup
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
@@ -34,7 +32,6 @@ void Game::Initialize()
 	ImGui::StyleColorsDark();
 	//ImGui::StyleColorsLight();
 	//ImGui::StyleColorsClassic();
-
 
 	// Helper methods for loading shaders, creating some basic
 	// geometry to draw and some simple camera matrices.
@@ -162,6 +159,8 @@ void Game::CreateGeometry()
 	XMFLOAT4 red = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
 	XMFLOAT4 green = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
 	XMFLOAT4 blue = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f);
+	XMFLOAT4 purple = XMFLOAT4(0.5f, 0.0f, 0.5f, 1.0f);
 
 	// Set up the vertices of the triangle we would like to draw
 	// - We're going to copy this array, exactly as it exists in CPU memory
@@ -182,12 +181,45 @@ void Game::CreateGeometry()
 		{ XMFLOAT3(-0.5f, -0.5f, +0.0f), green },
 	};
 
+	Vertex squareVertices[] = {
+		{ XMFLOAT3(-0.5f, +0.0f, +0.0f), yellow },
+		{ XMFLOAT3(-0.5f, -0.5f, +0.0f), yellow },
+		{ XMFLOAT3(-1.0f, -0.5f, +0.0f), purple },
+		{ XMFLOAT3(-1.0f, +0.0f, +0.0f), purple }
+	};
+
+	Vertex pentagonVertices[] = {
+		{ XMFLOAT3(+0.5f, +1.0f, +0.0f), green },
+		{ XMFLOAT3(+0.8f, +0.7f, +0.0f), blue },
+		{ XMFLOAT3(+0.8f, +0.1f, +0.0f), red },
+		{ XMFLOAT3(+0.2f, +0.1f, +0.0f), purple },
+		{ XMFLOAT3(+0.2f, +0.7f, +0.0f), yellow }
+	};
+	std::vector<Vertex> vertexVector(std::begin(vertices), std::end(vertices));
+	std::vector<Vertex> squareVertexVector(std::begin(squareVertices), std::end(squareVertices));
+	std::vector<Vertex> pentagonVertexVector(std::begin(pentagonVertices), std::end(pentagonVertices));
+
 	// Set up indices, which tell us which vertices to use and in which order
 	// - This is redundant for just 3 vertices, but will be more useful later
 	// - Indices are technically not required if the vertices are in the buffer 
 	//    in the correct order and each one will be used exactly once
 	// - But just to see how it's done...
 	unsigned int indices[] = { 0, 1, 2 };
+	unsigned int squareIndices[] = { 0, 1, 2, 0, 2, 3 };
+	unsigned int pentagonIndices[] = { 0, 1, 2, 0, 2, 3, 0, 3, 4 };
+	std::vector<unsigned int> indicesVector(std::begin(indices), std::end(indices));
+	std::vector<unsigned int> squareIndiciesVector(std::begin(squareIndices), std::end(squareIndices));
+	std::vector<unsigned int> pentagonIndiciesVector(std::begin(pentagonIndices), std::end(pentagonIndices));
+
+	triangle = std::make_shared<Mesh>();
+	triangle->Initialize(Graphics::Device, vertexVector, indicesVector);
+
+	square = std::make_shared<Mesh>();
+	square->Initialize(Graphics::Device, squareVertexVector, squareIndiciesVector);
+
+	pentagon = std::make_shared<Mesh>();
+	pentagon->Initialize(Graphics::Device, pentagonVertexVector, pentagonIndiciesVector);
+
 
 
 	// Create a VERTEX BUFFER
@@ -295,6 +327,36 @@ void Game::BuildUI()
 
 	ImGui::ColorEdit4("Background Color", color);
 
+	
+	// Mesh Info
+	if (ImGui::CollapsingHeader("Meshes"))
+	{
+		// Triangle Info
+		if (ImGui::CollapsingHeader("Triangle Info"))
+		{
+			ImGui::Text("Triangles: %d", (int)triangle->GetIndexCount()/3);
+			ImGui::Text("Vertices: %d", (int)triangle->GetVertexCount());
+			ImGui::Text("Indices: %d", (int)triangle->GetIndexCount());
+		}
+
+		// Square Info
+		if (ImGui::CollapsingHeader("Square Info"))
+		{
+			ImGui::Text("Triangles: %d", (int)triangle->GetIndexCount() / 3);
+			ImGui::Text("Vertices: %d", (int)square->GetVertexCount());
+			ImGui::Text("Indices: %d", (int)square->GetIndexCount());
+		}
+
+		// Pentagon Info
+		if (ImGui::CollapsingHeader("Pentagon Info"))
+		{
+			ImGui::Text("Triangles: %d", (int)triangle->GetIndexCount() / 3);
+			ImGui::Text("Vertices: %d", (int)pentagon->GetVertexCount());
+			ImGui::Text("Indices: %d", (int)pentagon->GetIndexCount());
+		}
+	}
+
+
 	if (ImGui::Button("Show ImGui Window"))
 	{
 		demoWindowVisible = !demoWindowVisible;
@@ -317,7 +379,10 @@ void Game::BuildUI()
 	}
 
 	ImGui::End(); // Ends the current window
+
+
 }
+
 
 // --------------------------------------------------------
 // Clear the screen, redraw everything, present to the user
@@ -329,35 +394,14 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
 		// Clear the back buffer (erase what's on screen) and depth buffer
+		const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
 		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
-
-	// DRAW geometry
-	// - These steps are generally repeated for EACH object you draw
-	// - Other Direct3D calls will also be necessary to do more complex things
-	{
-		// Set buffers in the input assembler (IA) stage
-		//  - Do this ONCE PER OBJECT, since each object may have different geometry
-		//  - For this demo, this step *could* simply be done once during Init()
-		//  - However, this needs to be done between EACH DrawIndexed() call
-		//     when drawing different geometry, so it's here as an example
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		Graphics::Context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-		Graphics::Context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-		// Tell Direct3D to draw
-		//  - Begins the rendering pipeline on the GPU
-		//  - Do this ONCE PER OBJECT you intend to draw
-		//  - This will use all currently set Direct3D resources (shaders, buffers, etc)
-		//  - DrawIndexed() uses the currently set INDEX BUFFER to look up corresponding
-		//     vertices in the currently set VERTEX BUFFER
-		Graphics::Context->DrawIndexed(
-			3,     // The number of indices to use (we could draw a subset if we wanted)
-			0,     // Offset to the first index we want to use
-			0);    // Offset to add to each index when looking up vertices
-	}
+		
+	triangle->Draw(Graphics::Context.Get());
+	square->Draw(Graphics::Context.Get());
+	pentagon->Draw(Graphics::Context.Get());
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
