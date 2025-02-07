@@ -60,6 +60,22 @@ void Game::Initialize()
 		Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
 		Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
 	}
+
+	unsigned int size = sizeof(VertexShaderData);
+	size = (size + 15) / 16 * 16;
+
+	D3D11_BUFFER_DESC cbDesc = {};
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.ByteWidth = size;
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+
+	Graphics::Device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
+	Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
+
+
 }
 
 
@@ -285,7 +301,6 @@ void Game::OnResize()
 {
 }
 
-
 // --------------------------------------------------------
 // Update your game here - user input, move objects, AI, etc.
 // --------------------------------------------------------
@@ -293,6 +308,7 @@ void Game::Update(float deltaTime, float totalTime)
 {
 	ImGuiUpdate(deltaTime);
 	BuildUI();
+	UpdateConstantBuffer();
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -367,20 +383,38 @@ void Game::BuildUI()
 		ImGui::ShowDemoWindow();
 	}
 
-	if (ImGui::CollapsingHeader("Random Stuff"))
-	{
-		if (ImGui::Button("Increment Bar"))
-		{
-			progress += 0.1f;
+	//if (ImGui::CollapsingHeader("Random Stuff"))
+	//{
+	//	if (ImGui::Button("Increment Bar"))
+	//	{
+	//		progress += 0.1f;
+	//
+	//		if (progress > 1.0f) progress = 0.0f;
+	//	}
+	//	ImGui::ProgressBar(progress, ImVec2(0.0f, 0.0f), "Progress");
+	//}
 
-			if (progress > 1.0f) progress = 0.0f;
-		}
-		ImGui::ProgressBar(progress, ImVec2(0.0f, 0.0f), "Progress");
+	if (ImGui::CollapsingHeader("Shader Controls"))
+	{
+		ImGui::SliderFloat3("Offset", (float*)&vsData.offset, -1.0f, 1.0f);
+
+		ImGui::ColorEdit4("Color Tint", (float*)&vsData.colorTint);
 	}
 
-	ImGui::End(); // Ends the current window
+
+	ImGui::End();
 
 
+}
+
+void Game::UpdateConstantBuffer()
+{
+	D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
+	Graphics::Context->Map(vsConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
+	memcpy(mappedBuffer.pData, &vsData, sizeof(vsData));
+	Graphics::Context->Unmap(vsConstantBuffer.Get(), 0);
+
+	Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
 }
 
 
@@ -398,7 +432,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
-		
+	
+	
 	triangle->Draw(Graphics::Context.Get());
 	square->Draw(Graphics::Context.Get());
 	pentagon->Draw(Graphics::Context.Get());

@@ -3,6 +3,7 @@
 #include <d3d11.h>
 #include <wrl/client.h>
 #include "Mesh.h"
+#include "BufferStructs.h"
 #include <memory>
 
 class Game
@@ -30,6 +31,8 @@ private:
 	void CreateGeometry();
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
+	VertexShaderData vsData;
+	void UpdateConstantBuffer();
 
 	// Note the usage of ComPtr below
 	//  - This is a smart pointer for objects that abide by the
@@ -44,6 +47,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
+	float temp;
 	std::shared_ptr<Mesh> triangle;
 	std::shared_ptr<Mesh> square;
 	std::shared_ptr<Mesh> pentagon;
