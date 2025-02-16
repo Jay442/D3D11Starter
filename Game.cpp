@@ -229,14 +229,28 @@ void Game::CreateGeometry()
 
 	triangle = std::make_shared<Mesh>();
 	triangle->Initialize(Graphics::Device, vertexVector, indicesVector);
+	meshes.push_back(triangle);
 
 	square = std::make_shared<Mesh>();
 	square->Initialize(Graphics::Device, squareVertexVector, squareIndiciesVector);
+	meshes.push_back(square);
 
 	pentagon = std::make_shared<Mesh>();
 	pentagon->Initialize(Graphics::Device, pentagonVertexVector, pentagonIndiciesVector);
+	meshes.push_back(pentagon);
 
+	std::shared_ptr<Game_Entity> entity1 = std::make_shared<Game_Entity>(triangle);
+	std::shared_ptr<Game_Entity> entity2 = std::make_shared<Game_Entity>(square);
+	std::shared_ptr<Game_Entity> entity3 = std::make_shared<Game_Entity>(pentagon);	  
+	std::shared_ptr<Game_Entity> entity4 = std::make_shared<Game_Entity>(pentagon);	  
+	std::shared_ptr<Game_Entity> entity5 = std::make_shared<Game_Entity>(pentagon);
 
+	entities.push_back(entity1);
+	entities.push_back(entity2);
+	entities.push_back(entity3);
+	entities.push_back(entity4);
+	entities.push_back(entity5);
+														   
 
 	// Create a VERTEX BUFFER
 	// - This holds the vertex data of triangles for a single object
@@ -308,7 +322,6 @@ void Game::Update(float deltaTime, float totalTime)
 {
 	ImGuiUpdate(deltaTime);
 	BuildUI();
-	UpdateConstantBuffer();
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -383,38 +396,46 @@ void Game::BuildUI()
 		ImGui::ShowDemoWindow();
 	}
 
-	//if (ImGui::CollapsingHeader("Random Stuff"))
+	//if (ImGui::CollapsingHeader("Shader Controls"))
 	//{
-	//	if (ImGui::Button("Increment Bar"))
-	//	{
-	//		progress += 0.1f;
+	//	ImGui::SliderFloat3("Offset", (float*)&vsData.offset, -1.0f, 1.0f);
 	//
-	//		if (progress > 1.0f) progress = 0.0f;
-	//	}
-	//	ImGui::ProgressBar(progress, ImVec2(0.0f, 0.0f), "Progress");
+	//	ImGui::ColorEdit4("Color Tint", (float*)&vsData.colorTint);
 	//}
 
-	if (ImGui::CollapsingHeader("Shader Controls"))
+	if (ImGui::CollapsingHeader("Entity Transform", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		ImGui::SliderFloat3("Offset", (float*)&vsData.offset, -1.0f, 1.0f);
+		for (int i = 0; i < entities.size(); i++)
+		{
+			if (ImGui::CollapsingHeader(("Entity " + std::to_string(i + 1)).c_str()))
+			{
+				// Position
+				DirectX::XMFLOAT3 position = entities[i]->GetTransform()->GetPosition();
+				if (ImGui::DragFloat3(("Position##" + std::to_string(i)).c_str(), &position.x, 0.1f))
+				{
+					entities[i]->GetTransform()->SetPosition(position);
+				}
 
-		ImGui::ColorEdit4("Color Tint", (float*)&vsData.colorTint);
+				// Rotation
+				DirectX::XMFLOAT3 rotation = entities[i]->GetTransform()->GetPitchYawRoll();
+				if (ImGui::DragFloat3(("Rotation##" + std::to_string(i)).c_str(), &rotation.x, 1.0f))
+				{
+					entities[i]->GetTransform()->SetRotation(rotation);
+				}
+
+				// Scale
+				DirectX::XMFLOAT3 scale = entities[i]->GetTransform()->GetScale();
+				if (ImGui::DragFloat3(("Scale##" + std::to_string(i)).c_str(), &scale.x, 0.1f))
+				{
+					entities[i]->GetTransform()->SetScale(scale);
+				}
+			}
+		}
 	}
-
 
 	ImGui::End();
 
 
-}
-
-void Game::UpdateConstantBuffer()
-{
-	D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
-	Graphics::Context->Map(vsConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
-	memcpy(mappedBuffer.pData, &vsData, sizeof(vsData));
-	Graphics::Context->Unmap(vsConstantBuffer.Get(), 0);
-
-	Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
 }
 
 
@@ -434,9 +455,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 	
 	
-	triangle->Draw(Graphics::Context.Get());
-	square->Draw(Graphics::Context.Get());
-	pentagon->Draw(Graphics::Context.Get());
+	for (auto& e : entities)
+	{
+		e->Draw(vsConstantBuffer);
+	}
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
