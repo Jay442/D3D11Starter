@@ -75,7 +75,40 @@ void Game::Initialize()
 	Graphics::Device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
 	Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
 
+	cameras.push_back(std::make_shared<Camera>(
+		Window::AspectRatio(),
+		XMFLOAT3(0, 0, -5),     // Position
+		XMFLOAT3(0, 0, 0),      // Rotation
+		XM_PIDIV4,              // 45° FOV
+		0.01f,                  // Near clip
+		100.0f,                 // Far clip
+		5.0f,                   // Move speed
+		0.002f                  // Mouse sensitivity
+	));
 
+	cameras.push_back(std::make_shared<Camera>(
+		Window::AspectRatio(),
+		XMFLOAT3(0, 2, -10),    
+		XMFLOAT3(0.2f, 0, 0),    
+		XM_PIDIV4 * 1.5,               
+		0.01f,
+		100.0f,
+		8.0f,                    
+		0.001f                   
+	));
+
+	// Add a third camera if you want
+	cameras.push_back(std::make_shared<Camera>(
+		Window::AspectRatio(),
+		XMFLOAT3(-5, 1, 0),      
+		XMFLOAT3(0, XM_PIDIV2, 0), 
+		XM_PIDIV4 * 1.2f,        
+		0.01f,
+		100.0f,
+		3.0f,                    
+		0.003f                   
+	));
+	activeCameraIndex = 0;
 }
 
 
@@ -313,6 +346,11 @@ void Game::CreateGeometry()
 // --------------------------------------------------------
 void Game::OnResize()
 {
+	float aspectRatio = Window::AspectRatio();
+	for (std::shared_ptr<Camera>& camera : cameras)
+	{
+		if (camera) camera->UpdateProjectionMatrix(aspectRatio);
+	}
 }
 
 // --------------------------------------------------------
@@ -322,6 +360,12 @@ void Game::Update(float deltaTime, float totalTime)
 {
 	ImGuiUpdate(deltaTime);
 	BuildUI();
+
+	activeCamera = GetActiveCamera();
+	if (activeCamera)
+	{
+		activeCamera->Update(deltaTime);
+	}
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -382,6 +426,26 @@ void Game::BuildUI()
 			ImGui::Text("Triangles: %d", (int)triangle->GetIndexCount() / 3);
 			ImGui::Text("Vertices: %d", (int)pentagon->GetVertexCount());
 			ImGui::Text("Indices: %d", (int)pentagon->GetIndexCount());
+		}
+	}
+
+	// Cameras
+	if (ImGui::CollapsingHeader("Switch Camera", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		for (int i = 0; i < cameras.size(); i++)
+		{
+			std::string label = "Camera " + std::to_string(i + 1);
+			if (ImGui::RadioButton(label.c_str(), activeCameraIndex == i))
+			{
+				activeCameraIndex = i;
+			}
+
+			// Show camera position as a tooltip
+			if (ImGui::IsItemHovered())
+			{
+				XMFLOAT3 pos = cameras[i]->GetTransform().GetPosition();
+				ImGui::SetTooltip("Position: %.1f, %.1f, %.1f", pos.x, pos.y, pos.z);
+			}
 		}
 	}
 
@@ -457,7 +521,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	
 	for (auto& e : entities)
 	{
-		e->Draw(vsConstantBuffer);
+		e->Draw(vsConstantBuffer, activeCamera);
 	}
 
 	// Frame END
@@ -480,5 +544,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 }
 
-
+std::shared_ptr<Camera> Game::GetActiveCamera() const
+{
+	if (cameras.empty()) return nullptr;
+	return cameras[activeCameraIndex];
+}
 

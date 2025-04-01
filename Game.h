@@ -5,6 +5,7 @@
 #include "Mesh.h"
 #include "BufferStructs.h"
 #include "Game_Entity.h"
+#include "Camera.h"
 #include <memory>
 
 class Game
@@ -47,6 +48,11 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
+
+	std::vector<std::shared_ptr<Camera>> cameras;
+	std::shared_ptr<Camera> activeCamera;
+	int activeCameraIndex = 0;
+	std::shared_ptr<Camera> GetActiveCamera() const;
 
 	std::shared_ptr<Mesh> triangle;
 	std::shared_ptr<Mesh> square;
