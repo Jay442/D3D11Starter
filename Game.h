@@ -29,7 +29,7 @@ private:
 	float progress = 0.0f;
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
-	void LoadShaders();
+	//void LoadShaders();
 	void CreateGeometry();
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
@@ -44,10 +44,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
 
 	// Shaders and shader-related constructs
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
+	//Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
+	//Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+	//Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
+	//Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
 
 	std::vector<std::shared_ptr<Camera>> cameras;
 	std::shared_ptr<Camera> activeCamera;

@@ -1,9 +1,11 @@
 #include "Game_Entity.h"
-#include "BufferStructs.h"
+//#include "BufferStructs.h"
 #include "Graphics.h"
 
-Game_Entity::Game_Entity(std::shared_ptr<Mesh> mesh)
-    : mesh(mesh)
+Game_Entity::Game_Entity(std::shared_ptr<Mesh> mesh, std::shared_ptr<Material> material)
+    : 
+    mesh(mesh),
+    material(material)
 {
     transform = std::make_shared<Transform>();
 }
@@ -21,21 +23,21 @@ void Game_Entity::SetMesh(std::shared_ptr<Mesh> mesh)
     this->mesh = mesh;
 }
 
-void Game_Entity::Draw(Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer, std::shared_ptr<Camera> camera)
+void Game_Entity::Draw(std::shared_ptr<Camera> camera)
 {
-    VertexShaderData vsData = {};
-    vsData.colorTint = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-    vsData.world = transform->GetWorldMatrix();
-
-    vsData.view = camera->GetViewMatrix();
-    vsData.projection = camera->GetProjectionMatrix();
-
-    D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
-    Graphics::Context->Map(vsConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
-    memcpy(mappedBuffer.pData, &vsData, sizeof(vsData));
-    Graphics::Context->Unmap(vsConstantBuffer.Get(), 0);
-
-    Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
-
+    //Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
+    material.get()->PrepareMaterial(transform, camera);
     mesh->Draw(Graphics::Context.Get());
 }
+
+std::shared_ptr<Material> Game_Entity::getMaterial()
+{
+    return material;
+}
+
+void Game_Entity::setMaterial(std::shared_ptr<Material> _material)
+{
+    material = _material;
+}
+
+
