@@ -7,6 +7,7 @@
 #include "Game_Entity.h"
 #include "Camera.h"
 #include <memory>
+#include "WICTextureLoader.h" 
 
 class Game
 {
@@ -60,5 +61,6 @@ private:
 
 	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<Game_Entity>> entities;
+	std::vector<std::shared_ptr<Material>> materials;
 };
 

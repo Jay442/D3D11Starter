@@ -224,13 +224,57 @@ void Game::CreateGeometry()
 		Graphics::Device, Graphics::Context, FixPath(L"DebugUVsPS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> custom = std::make_shared<SimplePixelShader>(
 		Graphics::Device, Graphics::Context, FixPath(L"CustomPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> combined = std::make_shared<SimplePixelShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"CombinationPS.cso").c_str());
 
-	std::shared_ptr<Material> mat1 = std::make_shared<Material>(red, vs, ps);
-	std::shared_ptr<Material> mat2 = std::make_shared<Material>(blue, vs, ps);
-	std::shared_ptr<Material> mat3 = std::make_shared<Material>(green, vs, ps);
+	// Sampler Loading 
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState;
+
+	D3D11_SAMPLER_DESC samplerDesc = {};
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+	samplerDesc.MaxAnisotropy = 16; 
+
+	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.MinLOD = 0;
+	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	samplerDesc.BorderColor[0] = 1.0f;
+	samplerDesc.BorderColor[1] = 1.0f;
+	samplerDesc.BorderColor[2] = 1.0f;
+	samplerDesc.BorderColor[3] = 1.0f;
+
+	Graphics::Device->CreateSamplerState(&samplerDesc, samplerState.GetAddressOf());
+
+	// Texture Loading
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockyTexture;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rocky_terrain_03_diff_4k.jpg").c_str(), 0, &rockyTexture);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodTexture;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rosewood_veneer1_diff_4k.jpg").c_str(), 0, &woodTexture);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> stainDecal;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/stained-decals_0011_01_T_L.png").c_str(), 0, &stainDecal);
+
+	// Material Loading
+	std::shared_ptr<Material> mat1 = std::make_shared<Material>(none, vs, ps);
+	std::shared_ptr<Material> mat2 = std::make_shared<Material>(none, vs, ps);
+	std::shared_ptr<Material> mat3 = std::make_shared<Material>(red, vs, combined);
 	std::shared_ptr<Material> normalMat = std::make_shared<Material>(none, vs, normalps);
 	std::shared_ptr<Material> uvMat = std::make_shared<Material>(none, vs, uvps);
 	std::shared_ptr<Material> customMat = std::make_shared<Material>(none, vs, custom);
+
+	materials.insert(materials.end(), { mat1, mat2, mat3, normalMat, uvMat, customMat });
+
+	mat1->AddTextureSRV("SurfaceTexture", woodTexture);
+	mat1->AddSampler("BasicSampler", samplerState);
+	mat2->AddTextureSRV("SurfaceTexture", rockyTexture);
+	mat2->AddSampler("BasicSampler", samplerState);
+	mat3->AddTextureSRV("TextureA", woodTexture);
+	mat3->AddTextureSRV("TextureB", stainDecal);
+	mat3->AddSampler("BasicSampler", samplerState);
+
 
 #pragma region Old 2D Entities
 	// Set up the vertices of the triangle we would like to draw
@@ -340,8 +384,8 @@ void Game::CreateGeometry()
 	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, mat1));
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, mat1));
 	entities.push_back(std::make_shared<Game_Entity>(helixMesh, mat2));
-	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, customMat));
-	entities.push_back(std::make_shared<Game_Entity>(torusMesh, customMat));
+	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, mat2));
+	entities.push_back(std::make_shared<Game_Entity>(torusMesh, mat3));
 	entities.push_back(std::make_shared<Game_Entity>(quadMesh, mat3));
 	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, mat3));
 
@@ -367,7 +411,7 @@ void Game::CreateGeometry()
 	entities[3]->GetTransform()->MoveAbsolute(0, 0, 0);
 	entities[4]->GetTransform()->MoveAbsolute(3, 0, 0);
 	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
-	entities[6]->GetTransform()->MoveAbsolute(9, 10, 0);
+	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
 	entities[7]->GetTransform()->MoveAbsolute(-9, 10, 0);
 	entities[8]->GetTransform()->MoveAbsolute(-6, 10, 0);
 	entities[9]->GetTransform()->MoveAbsolute(-3, 10, 0);
@@ -545,7 +589,7 @@ void Game::BuildUI()
 	//	ImGui::ColorEdit4("Color Tint", (float*)&vsData.colorTint);
 	//}
 
-	if (ImGui::CollapsingHeader("Entity Transform", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Entity Transform"))
 	{
 		for (int i = 0; i < entities.size(); i++)
 		{
@@ -575,9 +619,46 @@ void Game::BuildUI()
 		}
 	}
 
+	if (ImGui::CollapsingHeader("Materials"))
+	{
+		for (size_t i = 0; i < materials.size(); ++i)
+		{
+			auto& mat = materials[i];
+
+			if (ImGui::CollapsingHeader(("Material " + std::to_string(i)).c_str()))
+			{
+				// Color Tint Control
+				XMFLOAT4 tint = mat->GetColorTint();
+				if (ImGui::ColorEdit4("Color Tint", &tint.x))
+					mat->SetColorTint(tint);
+		
+				// UV Controls
+				XMFLOAT2 scale = mat->GetUVScale();
+				if (ImGui::DragFloat2("UV Scale", &scale.x, 0.01f, 0.0f, 5.0f))
+					mat->SetUVScale(scale);
+
+				XMFLOAT2 offset = mat->GetUVOffset();
+				if (ImGui::DragFloat2("UV Offset", &offset.x, 0.01f, -1.0f, 1.0f))
+					mat->SetUVOffset(offset);
+
+				// Textures
+				ImGui::Separator();
+				ImGui::Text("Textures:");
+
+				for (auto& it : mat->GetTextureSRVMap())
+				{
+					ImGui::Text(it.first.c_str());
+					if (it.second)
+					{
+						ImGui::Image((ImTextureID)it.second.Get(), ImVec2(256, 256));
+					}
+				}
+			}
+		}
+	}
+
+
 	ImGui::End();
-
-
 }
 
 

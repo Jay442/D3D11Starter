@@ -43,7 +43,6 @@ cbuffer ExternalData : register(b0)
     matrix projection;
     //float4 colorTint;
 };
-
 // --------------------------------------------------------
 // The entry point (main method) for our vertex shader
 // 
