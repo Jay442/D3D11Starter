@@ -30,7 +30,7 @@ void Game_Entity::Draw(std::shared_ptr<Camera> camera)
     mesh->Draw(Graphics::Context.Get());
 }
 
-std::shared_ptr<Material> Game_Entity::getMaterial()
+std::shared_ptr<Material> Game_Entity::GetMaterial()
 {
     return material;
 }

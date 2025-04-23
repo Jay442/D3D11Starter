@@ -1,27 +1,21 @@
+#include "ShaderStructs.hlsli"
+#include "Lighting.hlsli"
+
 Texture2D SurfaceTexture : register(t0); // "t" registers for textures
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
+Texture2D SpecularMap : register(t1);
 
-// Struct representing the data we expect to receive from earlier pipeline stages
-// - Should match the output of our corresponding vertex shader
-// - The name of the struct itself is unimportant
-// - The variable names don't have to match other shaders (just the semantics)
-// - Each variable must have a semantic, which defines its usage
-struct VertexToPixel
-{
-	// Data type
-	//  |
-	//  |   Name          Semantic
-	//  |    |                |
-	//  v    v                v
-	float4 screenPosition	: SV_POSITION;
-	//float4 color			: COLOR;
-    float2 uv : TEXCOORD;
-    float3 normal : NORMAL;
-};
 
 cbuffer ExternalData : register(b0)
 {
+    Light lights[MAX_LIGHTS];
+    int lightCount;
+    float3 ambientColor;
+    
+    float3 cameraPosition;
+    
     float4 colorTint;
+    float roughness;
     float2 uvScale;
     float2 uvOffset;
 };
@@ -37,12 +31,39 @@ cbuffer ExternalData : register(b0)
 // --------------------------------------------------------
 float4 main(VertexToPixel input) : SV_TARGET
 {
+    input.normal = normalize(input.normal);
     input.uv = input.uv * uvScale + uvOffset;
-	// Just return the input color
-	// - This color (like most values passing through the rasterizer) is 
-	//   interpolated for each pixel between the corresponding vertices 
-	//   of the triangle we're rendering
-    float4 surfaceColor = SurfaceTexture.Sample(BasicSampler, input.uv);
-    float4 finalColor = surfaceColor * colorTint;
-    return finalColor;
+    
+    float3 surfaceColor = SurfaceTexture.Sample(BasicSampler, input.uv).rgb * colorTint.rgb;
+    
+    float specularScale = SpecularMap.Sample(BasicSampler, input.uv).r;
+    
+    float3 viewDir = normalize(cameraPosition - input.worldPos);
+    
+    float3 totalLight = ambientColor * surfaceColor;
+    
+    // Process each light
+    for (int i = 0; i < lightCount; i++)
+    {
+        Light light = lights[i];
+        float3 lightDir = normalize(light.Direction);
+        
+        switch (lights[i].Type)
+        {
+            case LIGHT_TYPE_DIRECTIONAL:
+                totalLight += CalculateDirectionalLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor, specularScale);
+                break;
+
+            case LIGHT_TYPE_POINT:
+                totalLight += CalculatePointLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor, specularScale);
+                break;
+
+            case LIGHT_TYPE_SPOT:
+                totalLight += CalculateSpotLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor, specularScale);
+                break;
+        }
+    }
+
+    return float4(totalLight, 1);
+
 }

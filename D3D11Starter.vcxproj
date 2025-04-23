@@ -190,6 +190,7 @@
     <ClInclude Include="ImGui\imstb_textedit.h" />
     <ClInclude Include="ImGui\imstb_truetype.h" />
     <ClInclude Include="Input.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="PathHelpers.h" />
@@ -245,7 +246,9 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Lighting.hlsli" />
     <None Include="packages.config" />
+    <None Include="ShaderStructs.hlsli" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

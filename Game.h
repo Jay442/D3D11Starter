@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include <memory>
 #include "WICTextureLoader.h" 
+#include "Light.h"
 
 class Game
 {
@@ -32,6 +33,7 @@ private:
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	//void LoadShaders();
 	void CreateGeometry();
+	void GenerateLights();
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
 
@@ -62,5 +64,7 @@ private:
 	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<Game_Entity>> entities;
 	std::vector<std::shared_ptr<Material>> materials;
+	std::vector<Light> lights;
+	DirectX::XMFLOAT3 ambientColor;
 };
 

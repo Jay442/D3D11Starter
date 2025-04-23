@@ -13,7 +13,7 @@ public:
 	std::shared_ptr<Mesh> GetMesh();
 	std::shared_ptr<Material> material;
 
-	std::shared_ptr<Material> getMaterial();
+	std::shared_ptr<Material> GetMaterial();
 
 	void setMaterial(std::shared_ptr<Material> _material);
 	void SetMesh(std::shared_ptr<Mesh> mesh);

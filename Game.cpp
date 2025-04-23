@@ -39,6 +39,7 @@ void Game::Initialize()
 	//  - You'll be expanding and/or replacing these later
 	//LoadShaders();
 	CreateGeometry();
+	GenerateLights();
 
 	// Set initial graphics API state
 	//  - These settings persist until we change them
@@ -127,79 +128,6 @@ Game::~Game()
 	ImGui::DestroyContext();
 }
 
-#pragma region Old Shader Loading
-// --------------------------------------------------------
-// Loads shaders from compiled shader object (.cso) files
-// and also created the Input Layout that describes our 
-// vertex data to the rendering pipeline. 
-// - Input Layout creation is done here because it must 
-//    be verified against vertex shader byte code
-// - We'll have that byte code already loaded below
-// --------------------------------------------------------
-//void Game::LoadShaders()
-//{
-//	// BLOBs (or Binary Large OBjects) for reading raw data from external files
-//	// - This is a simplified way of handling big chunks of external data
-//	// - Literally just a big array of bytes read from a file
-//	ID3DBlob* pixelShaderBlob;
-//	ID3DBlob* vertexShaderBlob;
-//
-//	// Loading shaders
-//	//  - Visual Studio will compile our shaders at build time
-//	//  - They are saved as .cso (Compiled Shader Object) files
-//	//  - We need to load them when the application starts
-//	{
-//		// Read our compiled shader code files into blobs
-//		// - Essentially just "open the file and plop its contents here"
-//		// - Uses the custom FixPath() helper from Helpers.h to ensure relative paths
-//		// - Note the "L" before the string - this tells the compiler the string uses wide characters
-//		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), &pixelShaderBlob);
-//		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
-//
-//		// Create the actual Direct3D shaders on the GPU
-//		//Graphics::Device->CreatePixelShader(
-//		//	pixelShaderBlob->GetBufferPointer(),	// Pointer to blob's contents
-//		//	pixelShaderBlob->GetBufferSize(),		// How big is that data?
-//		//	0,										// No classes in this shader
-//		//	pixelShader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
-//
-//		//Graphics::Device->CreateVertexShader(
-//		//	vertexShaderBlob->GetBufferPointer(),	// Get a pointer to the blob's contents
-//		//	vertexShaderBlob->GetBufferSize(),		// How big is that data?
-//		//	0,										// No classes in this shader
-//		//	vertexShader.GetAddressOf());			// The address of the ID3D11VertexShader pointer
-//	}
-//
-//	// Create an input layout 
-//	//  - This describes the layout of data sent to a vertex shader
-//	//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
-//	//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
-//	//  - Luckily, we already have that loaded (the vertex shader blob above)
-//	{
-//		D3D11_INPUT_ELEMENT_DESC inputElements[2] = {};
-//
-//		// Set up the first element - a position, which is 3 float values
-//		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
-//		inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
-//		inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
-//
-//		// Set up the second element - a color, which is 4 more float values
-//		inputElements[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;			// 4x 32-bit floats
-//		inputElements[1].SemanticName = "COLOR";							// Match our vertex shader input!
-//		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
-//
-//		//// Create the input layout, verifying our description against actual shader code
-//		//Graphics::Device->CreateInputLayout(
-//		//	inputElements,							// An array of descriptions
-//		//	2,										// How many elements in that array?
-//		//	vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
-//		//	vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
-//		//	inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
-//	}
-//}
-#pragma endregion
-
-
 // --------------------------------------------------------
 // Creates the geometry we're going to draw
 // --------------------------------------------------------
@@ -274,82 +202,6 @@ void Game::CreateGeometry()
 	mat3->AddTextureSRV("TextureA", woodTexture);
 	mat3->AddTextureSRV("TextureB", stainDecal);
 	mat3->AddSampler("BasicSampler", samplerState);
-
-
-#pragma region Old 2D Entities
-	// Set up the vertices of the triangle we would like to draw
-	// - We're going to copy this array, exactly as it exists in CPU memory
-	//    over to a Direct3D-controlled data structure on the GPU (the vertex buffer)
-	// - Note: Since we don't have a camera or really any concept of
-	//    a "3d world" yet, we're simply describing positions within the
-	//    bounds of how the rasterizer sees our screen: [-1 to +1] on X and Y
-	// - This means (0,0) is at the very center of the screen.
-	// - These are known as "Normalized Device Coordinates" or "Homogeneous 
-	//    Screen Coords", which are ways to describe a position without
-	//    knowing the exact size (in pixels) of the image/window/etc.  
-	// - Long story short: Resizing the window also resizes the triangle,
-	//    since we're describing the triangle in terms of the window itself
-	//Vertex vertices[] =
-	//{
-	//	{ XMFLOAT3(+0.0f, +0.5f, +0.0f), red },
-	//	{ XMFLOAT3(+0.5f, -0.5f, +0.0f), blue },
-	//	{ XMFLOAT3(-0.5f, -0.5f, +0.0f), green },
-	//};
-	//
-	//Vertex squareVertices[] = {
-	//	{ XMFLOAT3(-0.5f, +0.0f, +0.0f), yellow },
-	//	{ XMFLOAT3(-0.5f, -0.5f, +0.0f), yellow },
-	//	{ XMFLOAT3(-1.0f, -0.5f, +0.0f), purple },
-	//	{ XMFLOAT3(-1.0f, +0.0f, +0.0f), purple }
-	//};
-	//
-	//Vertex pentagonVertices[] = {
-	//	{ XMFLOAT3(+0.5f, +1.0f, +0.0f), green },
-	//	{ XMFLOAT3(+0.8f, +0.7f, +0.0f), blue },
-	//	{ XMFLOAT3(+0.8f, +0.1f, +0.0f), red },
-	//	{ XMFLOAT3(+0.2f, +0.1f, +0.0f), purple },
-	//	{ XMFLOAT3(+0.2f, +0.7f, +0.0f), yellow }
-	//};
-	//std::vector<Vertex> vertexVector(std::begin(vertices), std::end(vertices));
-	//std::vector<Vertex> squareVertexVector(std::begin(squareVertices), std::end(squareVertices));
-	//std::vector<Vertex> pentagonVertexVector(std::begin(pentagonVertices), std::end(pentagonVertices));
-	//
-	//// Set up indices, which tell us which vertices to use and in which order
-	//// - This is redundant for just 3 vertices, but will be more useful later
-	//// - Indices are technically not required if the vertices are in the buffer 
-	////    in the correct order and each one will be used exactly once
-	//// - But just to see how it's done...
-	//unsigned int indices[] = { 0, 1, 2 };
-	//unsigned int squareIndices[] = { 0, 1, 2, 0, 2, 3 };
-	//unsigned int pentagonIndices[] = { 0, 1, 2, 0, 2, 3, 0, 3, 4 };
-	//std::vector<unsigned int> indicesVector(std::begin(indices), std::end(indices));
-	//std::vector<unsigned int> squareIndiciesVector(std::begin(squareIndices), std::end(squareIndices));
-	//std::vector<unsigned int> pentagonIndiciesVector(std::begin(pentagonIndices), std::end(pentagonIndices));
-	//
-	//triangle = std::make_shared<Mesh>();
-	//triangle->Initialize(Graphics::Device, vertexVector, indicesVector);
-	//meshes.push_back(triangle);
-	//
-	//square = std::make_shared<Mesh>();
-	//square->Initialize(Graphics::Device, squareVertexVector, squareIndiciesVector);
-	//meshes.push_back(square);
-	//
-	//pentagon = std::make_shared<Mesh>();
-	//pentagon->Initialize(Graphics::Device, pentagonVertexVector, pentagonIndiciesVector);
-	//meshes.push_back(pentagon);
-	//
-	//std::shared_ptr<Game_Entity> entity1 = std::make_shared<Game_Entity>(triangle, mat1);
-	//std::shared_ptr<Game_Entity> entity2 = std::make_shared<Game_Entity>(square, mat2);
-	//std::shared_ptr<Game_Entity> entity3 = std::make_shared<Game_Entity>(pentagon, mat3);	  
-	//std::shared_ptr<Game_Entity> entity4 = std::make_shared<Game_Entity>(pentagon, mat3);	  
-	//std::shared_ptr<Game_Entity> entity5 = std::make_shared<Game_Entity>(pentagon, mat3);
-
-	//entities.push_back(entity1);
-	//entities.push_back(entity2);
-	//entities.push_back(entity3);
-	//entities.push_back(entity4);
-	//entities.push_back(entity5);
-#pragma endregion
 				
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath("../../Assets/Models/cube.obj").c_str(), Graphics::Device);
 	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>("Cylinder", FixPath("../../Assets/Models/cylinder.obj").c_str(), Graphics::Device);
@@ -385,9 +237,9 @@ void Game::CreateGeometry()
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, mat1));
 	entities.push_back(std::make_shared<Game_Entity>(helixMesh, mat2));
 	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, mat2));
-	entities.push_back(std::make_shared<Game_Entity>(torusMesh, mat3));
-	entities.push_back(std::make_shared<Game_Entity>(quadMesh, mat3));
-	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, mat3));
+	entities.push_back(std::make_shared<Game_Entity>(torusMesh, mat1));
+	entities.push_back(std::make_shared<Game_Entity>(quadMesh, mat2));
+	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, mat2));
 
 	entities.push_back(std::make_shared<Game_Entity>(cubeMeshNormal, normalMat));
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMeshNormal, normalMat));
@@ -427,60 +279,56 @@ void Game::CreateGeometry()
 	entities[19]->GetTransform()->MoveAbsolute(6, 5, 0);
 	entities[20]->GetTransform()->MoveAbsolute(9, 5, 0);
 
+	ambientColor = XMFLOAT3(0.1f, 0.1f, 0.25f);
+}
 
-	//// Create a VERTEX BUFFER
-	//// - This holds the vertex data of triangles for a single object
-	//// - This buffer is created on the GPU, which is where the data needs to
-	////    be if we want the GPU to act on it (as in: draw it to the screen)
-	//{
-	//	// First, we need to describe the buffer we want Direct3D to make on the GPU
-	//	//  - Note that this variable is created on the stack since we only need it once
-	//	//  - After the buffer is created, this description variable is unnecessary
-	//	D3D11_BUFFER_DESC vbd = {};
-	//	vbd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-	//	vbd.ByteWidth = sizeof(Vertex) * 3;       // 3 = number of vertices in the buffer
-	//	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER; // Tells Direct3D this is a vertex buffer
-	//	vbd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-	//	vbd.MiscFlags = 0;
-	//	vbd.StructureByteStride = 0;
-	//
-	//	// Create the proper struct to hold the initial vertex data
-	//	// - This is how we initially fill the buffer with data
-	//	// - Essentially, we're specifying a pointer to the data to copy
-	//	D3D11_SUBRESOURCE_DATA initialVertexData = {};
-	//	initialVertexData.pSysMem = vertices; // pSysMem = Pointer to System Memory
-	//
-	//	// Actually create the buffer on the GPU with the initial data
-	//	// - Once we do this, we'll NEVER CHANGE DATA IN THE BUFFER AGAIN
-	//	Graphics::Device->CreateBuffer(&vbd, &initialVertexData, vertexBuffer.GetAddressOf());
-	//}
+void Game::GenerateLights()
+{
+	lights.clear();
 
-	// Create an INDEX BUFFER
-	// - This holds indices to elements in the vertex buffer
-	// - This is most useful when vertices are shared among neighboring triangles
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	//{
-	//	// Describe the buffer, as we did above, with two major differences
-	//	//  - Byte Width (3 unsigned integers vs. 3 whole vertices)
-	//	//  - Bind Flag (used as an index buffer instead of a vertex buffer) 
-	//	D3D11_BUFFER_DESC ibd = {};
-	//	ibd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-	//	ibd.ByteWidth = sizeof(unsigned int) * 3;	// 3 = number of indices in the buffer
-	//	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;	// Tells Direct3D this is an index buffer
-	//	ibd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-	//	ibd.MiscFlags = 0;
-	//	ibd.StructureByteStride = 0;
-	//
-	//	// Specify the initial data for this buffer, similar to above
-	//	D3D11_SUBRESOURCE_DATA initialIndexData = {};
-	//	initialIndexData.pSysMem = indices; // pSysMem = Pointer to System Memory
-	//
-	//	// Actually create the buffer with the initial data
-	//	// - Once we do this, we'll NEVER CHANGE THE BUFFER AGAIN
-	//	Graphics::Device->CreateBuffer(&ibd, &initialIndexData, indexBuffer.GetAddressOf());
-	//
-	//}
+	// Directional light
+	Light dir1 = {};
+	dir1.Type = LIGHT_TYPE_DIRECTIONAL;
+	dir1.Direction = XMFLOAT3(1, -1, 0);
+	dir1.Color = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	dir1.Intensity = 1.0f;
+	lights.push_back(dir1);
+	
+	Light dir2 = {};
+	dir2.Type = LIGHT_TYPE_DIRECTIONAL;
+	dir2.Direction = XMFLOAT3(1, 1, 0);
+	dir2.Color = XMFLOAT3(0.0f, 1.0f, 1.0f);
+	dir2.Intensity = 1.0f;
+	lights.push_back(dir2);
+	
+	Light dir3 = {};
+	dir3.Type = LIGHT_TYPE_DIRECTIONAL;
+	dir3.Direction = XMFLOAT3(0, 0, 1);
+	dir3.Color = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	dir3.Intensity = 1.0f;
+	lights.push_back(dir3);
+
+	// Point light
+	Light point1 = {};
+	point1.Type = LIGHT_TYPE_POINT;
+	point1.Position = XMFLOAT3(0, 2, 0);
+	point1.Color = XMFLOAT3(1, 0, 0);
+	point1.Intensity = 2.0f;
+	point1.Range = 10.0f;
+	lights.push_back(point1);
+
+	// Spot light 
+	Light spot1 = {};
+	spot1.Type = LIGHT_TYPE_SPOT;
+	spot1.Position = XMFLOAT3(6, 2, 0);
+	spot1.Direction = XMFLOAT3(0, -1, 0);
+	spot1.Color = XMFLOAT3(0, 0, 1);
+	spot1.Intensity = 5.0f;
+	spot1.Range = 5.0f;
+	spot1.SpotOuterAngle = XMConvertToRadians(30.0f);
+	spot1.SpotInnerAngle = XMConvertToRadians(20.0f);
+	lights.push_back(spot1);
+
 }
 
 
@@ -657,6 +505,41 @@ void Game::BuildUI()
 		}
 	}
 
+	if (ImGui::CollapsingHeader("Lights"))
+	{
+		ImGui::ColorEdit3("Ambient Color", &ambientColor.x);
+
+		for (int i = 0; i < lights.size(); i++)
+		{
+			ImGui::PushID(i);
+			if (ImGui::CollapsingHeader(("Light " + std::to_string(i)).c_str()))
+			{
+				ImGui::Combo("Type", &lights[i].Type, "Directional\0Point\0Spot\0");
+
+				ImGui::ColorEdit3("Color", &lights[i].Color.x);
+				ImGui::DragFloat("Intensity", &lights[i].Intensity, 0.1f, 0.0f, 10.0f);
+
+				if (lights[i].Type != LIGHT_TYPE_DIRECTIONAL)
+				{
+					ImGui::DragFloat3("Position", &lights[i].Position.x, 0.1f);
+					ImGui::DragFloat("Range", &lights[i].Range, 0.1f, 0.0f, 100.0f);
+				}
+
+				if (lights[i].Type != LIGHT_TYPE_POINT)
+				{
+					ImGui::DragFloat3("Direction", &lights[i].Direction.x, 0.1f);
+				}
+
+				if (lights[i].Type == LIGHT_TYPE_SPOT)
+				{
+					ImGui::DragFloat("Inner Angle", &lights[i].SpotInnerAngle, 0.01f, 0.0f, XM_PI);
+					ImGui::DragFloat("Outer Angle", &lights[i].SpotOuterAngle, 0.01f, 0.0f, XM_PI);
+				}
+			}
+			ImGui::PopID();
+		}
+	}
+
 
 	ImGui::End();
 }
@@ -680,6 +563,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	
 	for (auto& e : entities)
 	{
+		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
+		ps->SetFloat3("ambientColor", ambientColor);
+		ps->SetInt("lightCount", (int)lights.size());
+		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
 		e->Draw(activeCamera);
 	}
 
