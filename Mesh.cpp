@@ -202,7 +202,6 @@ Mesh::Mesh(const char* name, const std::string& objFile, Microsoft::WRL::ComPtr<
 	// Close the file and create the actual buffers
 	obj.close();
 
-	CalculateTangents(verts.data(), static_cast<unsigned int>(verts.size()), indices.data(), static_cast<unsigned int>(indices.size()));
 	CreateBuffers(device, verts.data(), static_cast<unsigned int>(verts.size()), indices.data(), static_cast<unsigned int>(indices.size()));
 }
 
@@ -360,6 +359,8 @@ void Mesh::CalculateTangents(Vertex* verts, int numVerts, unsigned int* indices,
 
 void Mesh::CreateBuffers(Microsoft::WRL::ComPtr<ID3D11Device> device, Vertex* vertArray, unsigned int vertexCount, unsigned int* indexArray, unsigned int indexCount)
 {
+	CalculateTangents(vertArray, vertexCount, indexArray, indexCount);
+
 	D3D11_BUFFER_DESC vbd = {};
 	vbd.Usage = D3D11_USAGE_IMMUTABLE;
 	vbd.ByteWidth = sizeof(Vertex) * vertexCount;

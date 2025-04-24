@@ -35,24 +35,8 @@ float4 main(VertexToPixel input) : SV_TARGET
     input.normal = normalize(input.normal);
     input.uv = input.uv * uvScale + uvOffset;
     
-    // Normal Maping
-    float3 normalMapSample = NormalMap.Sample(BasicSampler, input.uv).rgb;
-    float3 unpackedNormal = normalize(normalMapSample * 2.0f - 1.0f);
-    float3 N = normalize(input.normal);
-    float3 T = normalize(input.tangent);
-    
-    // Orthogonalize tangent with Gram-Schmidt
-    T = normalize(T - dot(T, N) * N);
-    
-    // Calculate bitangent
-    float3 B = cross(N, T);
-    
-    // Create TBN matrix
-    float3x3 TBN = float3x3(T, B, N);
-    
-    // Transform normal from tangent to world space
-    float3 finalNormal = mul(unpackedNormal, TBN);
-    finalNormal = normalize(finalNormal);
+    float3 normalMap = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+    input.normal = normalMap;
     
     float3 surfaceColor = pow(Albedo.Sample(BasicSampler, input.uv).rgb * colorTint.rgb, 2.2f);
     float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;

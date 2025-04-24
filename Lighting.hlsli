@@ -56,6 +56,23 @@ float3 DiffuseEnergyConserve(float3 diffuse, float3 F, float metalness)
     return diffuse * (1 - F) * (1 - metalness);
 }
 
+float3 NormalMapping(Texture2D map, SamplerState samp, float2 uv, float3 normal, float3 tangent)
+{
+	// Grab the normal from the map
+    float3 normalFromMap = map.Sample(samp, uv).rgb * 2.0f - 1.0f;
+
+	// Gather the required vectors for converting the normal
+    float3 N = normal;
+    float3 T = normalize(tangent - N * dot(tangent, N));
+    float3 B = cross(T, N);
+
+	// Create the 3x3 matrix to convert from TANGENT-SPACE normals to WORLD-SPACE normals
+    float3x3 TBN = float3x3(T, B, N);
+
+	// Adjust the normal from the map and simply use the results
+    return normalize(mul(normalFromMap, TBN));
+}
+
 // Normal Distribution Function: GGX (Trowbridge-Reitz)
 //
 // a - Roughness

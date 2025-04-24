@@ -302,13 +302,13 @@ void Game::CreateGeometry()
 	//mat3->AddSampler("BasicSampler", samplerState);
 				
 
-	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, bamboo));
-	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, chip));
-	entities.push_back(std::make_shared<Game_Entity>(helixMesh, metalPlate));
-	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, rock));
+	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, chip));
+	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, metalPlate));
+	entities.push_back(std::make_shared<Game_Entity>(helixMesh, chip));
+	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, bamboo));
 	entities.push_back(std::make_shared<Game_Entity>(torusMesh, metalPlate));
 	entities.push_back(std::make_shared<Game_Entity>(quadMesh, chip));
-	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, chip));
+	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, bamboo));
 
 	entities.push_back(std::make_shared<Game_Entity>(cubeMeshNormal, normalMat));
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMeshNormal, normalMat));
@@ -359,21 +359,21 @@ void Game::GenerateLights()
 	Light dir1 = {};
 	dir1.Type = LIGHT_TYPE_DIRECTIONAL;
 	dir1.Direction = XMFLOAT3(1, -1, 0);
-	dir1.Color = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	dir1.Color = XMFLOAT3(1.0f, 1.0f, 1.0f);
 	dir1.Intensity = 1.0f;
 	lights.push_back(dir1);
 	
 	Light dir2 = {};
 	dir2.Type = LIGHT_TYPE_DIRECTIONAL;
 	dir2.Direction = XMFLOAT3(1, 1, 0);
-	dir2.Color = XMFLOAT3(0.0f, 1.0f, 1.0f);
+	dir2.Color = XMFLOAT3(1.0f, 1.0f, 1.0f);
 	dir2.Intensity = 1.0f;
 	lights.push_back(dir2);
 	
 	Light dir3 = {};
 	dir3.Type = LIGHT_TYPE_DIRECTIONAL;
 	dir3.Direction = XMFLOAT3(0, 0, 1);
-	dir3.Color = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	dir3.Color = XMFLOAT3(1.0f, 1.0f, 1.0f);
 	dir3.Intensity = 1.0f;
 	lights.push_back(dir3);
 	
