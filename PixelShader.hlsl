@@ -4,6 +4,7 @@
 Texture2D SurfaceTexture : register(t0); // "t" registers for textures
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
 Texture2D SpecularMap : register(t1);
+Texture2D NormalMap : register(t2);
 
 
 cbuffer ExternalData : register(b0)
@@ -33,6 +34,24 @@ float4 main(VertexToPixel input) : SV_TARGET
 {
     input.normal = normalize(input.normal);
     input.uv = input.uv * uvScale + uvOffset;
+    
+    float3 normalMapSample = NormalMap.Sample(BasicSampler, input.uv).rgb;
+    float3 unpackedNormal = normalize(normalMapSample * 2.0f - 1.0f);
+    float3 N = normalize(input.normal);
+    float3 T = normalize(input.tangent);
+    
+    // Orthogonalize tangent with Gram-Schmidt
+    T = normalize(T - dot(T, N) * N);
+    
+    // Calculate bitangent
+    float3 B = cross(N, T);
+    
+    // Create TBN matrix
+    float3x3 TBN = float3x3(T, B, N);
+    
+    // Transform normal from tangent to world space
+    float3 finalNormal = mul(unpackedNormal, TBN);
+    finalNormal = normalize(finalNormal);
     
     float3 surfaceColor = SurfaceTexture.Sample(BasicSampler, input.uv).rgb * colorTint.rgb;
     

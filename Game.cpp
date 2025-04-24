@@ -154,6 +154,11 @@ void Game::CreateGeometry()
 		Graphics::Device, Graphics::Context, FixPath(L"CustomPS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> combined = std::make_shared<SimplePixelShader>(
 		Graphics::Device, Graphics::Context, FixPath(L"CombinationPS.cso").c_str());
+	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
+
 
 	// Sampler Loading 
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState;
@@ -177,32 +182,7 @@ void Game::CreateGeometry()
 
 	Graphics::Device->CreateSamplerState(&samplerDesc, samplerState.GetAddressOf());
 
-	// Texture Loading
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockyTexture;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rocky_terrain_03_diff_4k.jpg").c_str(), 0, &rockyTexture);
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodTexture;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rosewood_veneer1_diff_4k.jpg").c_str(), 0, &woodTexture);
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> stainDecal;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/stained-decals_0011_01_T_L.png").c_str(), 0, &stainDecal);
-
-	// Material Loading
-	std::shared_ptr<Material> mat1 = std::make_shared<Material>(none, vs, ps);
-	std::shared_ptr<Material> mat2 = std::make_shared<Material>(none, vs, ps);
-	std::shared_ptr<Material> mat3 = std::make_shared<Material>(red, vs, combined);
-	std::shared_ptr<Material> normalMat = std::make_shared<Material>(none, vs, normalps);
-	std::shared_ptr<Material> uvMat = std::make_shared<Material>(none, vs, uvps);
-	std::shared_ptr<Material> customMat = std::make_shared<Material>(none, vs, custom);
-
-	materials.insert(materials.end(), { mat1, mat2, mat3, normalMat, uvMat, customMat });
-
-	mat1->AddTextureSRV("SurfaceTexture", woodTexture);
-	mat1->AddSampler("BasicSampler", samplerState);
-	mat2->AddTextureSRV("SurfaceTexture", rockyTexture);
-	mat2->AddSampler("BasicSampler", samplerState);
-	mat3->AddTextureSRV("TextureA", woodTexture);
-	mat3->AddTextureSRV("TextureB", stainDecal);
-	mat3->AddSampler("BasicSampler", samplerState);
-				
+	// Mesh Loading
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath("../../Assets/Models/cube.obj").c_str(), Graphics::Device);
 	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>("Cylinder", FixPath("../../Assets/Models/cylinder.obj").c_str(), Graphics::Device);
 	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>("Helix", FixPath("../../Assets/Models/helix.obj").c_str(), Graphics::Device);
@@ -227,11 +207,59 @@ void Game::CreateGeometry()
 	std::shared_ptr<Mesh> quadMeshUV = std::make_shared<Mesh>("Quad", FixPath("../../Assets/Models/quad.obj").c_str(), Graphics::Device);
 	std::shared_ptr<Mesh> quad2sidedMeshUV = std::make_shared<Mesh>("Double-Sided Quad", FixPath("../../Assets/Models/quad_double_sided.obj").c_str(), Graphics::Device);
 
-	meshes.insert(meshes.end(), { 
+	meshes.insert(meshes.end(), {
 		cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh,
 		cubeMeshNormal, cylinderMeshNormal, helixMeshNormal, sphereMeshNormal, torusMeshNormal, quadMeshNormal, quad2sidedMeshNormal,
 		cubeMeshUV, cylinderMeshUV, helixMeshUV, sphereMeshUV, torusMeshUV, quadMeshUV, quad2sidedMeshUV
 		});
+
+	// Texture Loading
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockyTexture;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rocky_terrain_03_diff_4k.jpg").c_str(), 0, &rockyTexture);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockyTextureNormal;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rocky_terrain_03_nor_gl_4k.exr").c_str(), 0, &rockyTextureNormal);
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodTexture;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rosewood_veneer1_diff_4k.jpg").c_str(), 0, &woodTexture);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodTextureNormal;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rosewood_veneer1_nor_gl_4k.exr").c_str(), 0, &woodTextureNormal);
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> stainDecal;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/stained-decals_0011_01_T_L.png").c_str(), 0, &stainDecal);
+
+	// Sky
+	sky = std::make_shared<Sky>(
+		FixPath(L"../../Assets/Skies/Clouds Pink/right.png").c_str(),
+		FixPath(L"../../Assets/Skies/Clouds Pink/left.png").c_str(),
+		FixPath(L"../../Assets/Skies/Clouds Pink/up.png").c_str(),
+		FixPath(L"../../Assets/Skies/Clouds Pink/down.png").c_str(),
+		FixPath(L"../../Assets/Skies/Clouds Pink/front.png").c_str(),
+		FixPath(L"../../Assets/Skies/Clouds Pink/back.png").c_str(),
+		cubeMesh,
+		skyVS,
+		skyPS,
+		samplerState);
+
+	// Material Loading
+	std::shared_ptr<Material> mat1 = std::make_shared<Material>(none, vs, ps);
+	std::shared_ptr<Material> mat2 = std::make_shared<Material>(none, vs, ps);
+	std::shared_ptr<Material> mat3 = std::make_shared<Material>(red, vs, combined);
+	std::shared_ptr<Material> normalMat = std::make_shared<Material>(none, vs, normalps);
+	std::shared_ptr<Material> uvMat = std::make_shared<Material>(none, vs, uvps);
+	std::shared_ptr<Material> customMat = std::make_shared<Material>(none, vs, custom);
+
+	materials.insert(materials.end(), { mat1, mat2, mat3, normalMat, uvMat, customMat });
+
+	mat1->AddTextureSRV("SurfaceTexture", woodTexture);
+	mat1->AddTextureSRV("NormalMap", woodTextureNormal);
+	mat1->AddSampler("BasicSampler", samplerState);
+	mat2->AddTextureSRV("SurfaceTexture", rockyTexture);
+	mat2->AddTextureSRV("NormalMap", rockyTextureNormal);
+	mat2->AddSampler("BasicSampler", samplerState);
+	mat3->AddTextureSRV("TextureA", woodTexture);
+	mat3->AddTextureSRV("TextureB", stainDecal);
+	mat3->AddSampler("BasicSampler", samplerState);
+				
 
 	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, mat1));
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, mat1));
@@ -279,7 +307,7 @@ void Game::CreateGeometry()
 	entities[19]->GetTransform()->MoveAbsolute(6, 5, 0);
 	entities[20]->GetTransform()->MoveAbsolute(9, 5, 0);
 
-	ambientColor = XMFLOAT3(0.1f, 0.1f, 0.25f);
+	ambientColor = XMFLOAT3(1.0f, 0.82f, 0.86f);
 }
 
 void Game::GenerateLights()
@@ -307,7 +335,7 @@ void Game::GenerateLights()
 	dir3.Color = XMFLOAT3(1.0f, 0.0f, 0.0f);
 	dir3.Intensity = 1.0f;
 	lights.push_back(dir3);
-
+	
 	// Point light
 	Light point1 = {};
 	point1.Type = LIGHT_TYPE_POINT;
@@ -316,7 +344,7 @@ void Game::GenerateLights()
 	point1.Intensity = 2.0f;
 	point1.Range = 10.0f;
 	lights.push_back(point1);
-
+	
 	// Spot light 
 	Light spot1 = {};
 	spot1.Type = LIGHT_TYPE_SPOT;
@@ -570,6 +598,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		e->Draw(activeCamera);
 	}
 
+	sky->Draw(activeCamera);
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
 	// - At the very end of the frame (after drawing *everything*)

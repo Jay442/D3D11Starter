@@ -39,10 +39,12 @@ float3 CalculateDiffuse(float3 normal, float3 lightDir)
     return saturate(dot(normal, lightDir));
 }
 
-float3 CalculateSpecular(float3 normal, float3 lightDir, float3 toCamera, float roughness)
+float3 CalculateSpecular(float3 normal, float3 lightDir, float3 toCamera, float roughness, float3 diffuse)
 {
     float3 reflectDir = reflect(-lightDir, normal);
-    return roughness == 1 ? 0.0f : pow(max(dot(toCamera, reflectDir), 0), (1 - roughness) * MAX_SPECULAR_EXPONENT);
+    float spec = pow(max(dot(toCamera, reflectDir), 0), (1 - roughness) * MAX_SPECULAR_EXPONENT);
+    spec *= any(diffuse); 
+    return spec;
 }
 
 float SpecularBlinnPhong(float3 normal, float3 dirToLight, float3 toCamera, float roughness)
@@ -60,7 +62,7 @@ float3 CalculateDirectionalLight(Light light, float3 normal, float3 worldPos, fl
     float3 viewDir = normalize(camPos - worldPos);
     
     float3 diffuse = CalculateDiffuse(normal, lightDir);
-    float3 specular = CalculateSpecular(normal, lightDir, viewDir, roughness);
+    float3 specular = CalculateSpecular(normal, lightDir, viewDir, roughness, diffuse);
     return (diffuse * surfaceColor + specular) * light.Intensity * light.Color;
 }
 
@@ -71,7 +73,7 @@ float3 CalculatePointLight(Light light, float3 normal, float3 worldPos, float3 c
     
     float attenuation = Attenuate(light, worldPos);
     float3 diffuse = CalculateDiffuse(normal, lightDir);
-    float3 specular = CalculateSpecular(normal, lightDir, viewDir, roughness);
+    float3 specular = CalculateSpecular(normal, lightDir, viewDir, roughness, diffuse);
     return (diffuse * surfaceColor + specular) * light.Intensity * light.Color;
 }
 

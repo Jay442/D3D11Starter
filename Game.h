@@ -9,6 +9,7 @@
 #include <memory>
 #include "WICTextureLoader.h" 
 #include "Light.h"
+#include "Sky.h"
 
 class Game
 {
@@ -60,6 +61,8 @@ private:
 	std::shared_ptr<Mesh> triangle;
 	std::shared_ptr<Mesh> square;
 	std::shared_ptr<Mesh> pentagon;
+
+	std::shared_ptr<Sky> sky;
 
 	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<Game_Entity>> entities;
