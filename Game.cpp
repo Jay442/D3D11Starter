@@ -128,6 +128,27 @@ Game::~Game()
 	ImGui::DestroyContext();
 }
 
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Game::LoadTexture(const std::wstring& path)
+{
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, &srv);
+	return srv;
+}
+
+PBRTexture Game::LoadPBRMaterial(
+	const std::wstring& basePath,
+	const std::wstring& materialName
+) {
+	PBRTexture tex;
+
+	tex.Albedo = LoadTexture(basePath + materialName + L"_Color.png");
+	tex.Normal = LoadTexture(basePath + materialName + L"_NormalDX.png");
+	tex.Roughness = LoadTexture(basePath + materialName + L"_Roughness.png");
+	tex.Metallic = LoadTexture(basePath + materialName + L"_Metalness.png");
+
+	return tex;
+}
+
 // --------------------------------------------------------
 // Creates the geometry we're going to draw
 // --------------------------------------------------------
@@ -214,18 +235,11 @@ void Game::CreateGeometry()
 		});
 
 	// Texture Loading
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockyTexture;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rocky_terrain_03_diff_4k.jpg").c_str(), 0, &rockyTexture);
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockyTextureNormal;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rocky_terrain_03_nor_gl_4k.exr").c_str(), 0, &rockyTextureNormal);
-
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodTexture;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rosewood_veneer1_diff_4k.jpg").c_str(), 0, &woodTexture);
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodTextureNormal;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/rosewood_veneer1_nor_gl_4k.exr").c_str(), 0, &woodTextureNormal);
-
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> stainDecal;
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(L"../../Assets/Textures/stained-decals_0011_01_T_L.png").c_str(), 0, &stainDecal);
+	const std::wstring& basePath = L"../../Assets/Textures/";
+	PBRTexture bambooTexture = LoadPBRMaterial(basePath, L"Bamboo001A_1K-PNG");
+	PBRTexture chipTexture = LoadPBRMaterial(basePath, L"Chip005_1K-PNG");
+	PBRTexture metalPlateTexture = LoadPBRMaterial(basePath, L"MetalPlates006_1K-PNG");
+	PBRTexture rockTexture = LoadPBRMaterial(basePath, L"Rock051_1K-PNG");
 
 	// Sky
 	sky = std::make_shared<Sky>(
@@ -241,33 +255,60 @@ void Game::CreateGeometry()
 		samplerState);
 
 	// Material Loading
-	std::shared_ptr<Material> mat1 = std::make_shared<Material>(none, vs, ps);
-	std::shared_ptr<Material> mat2 = std::make_shared<Material>(none, vs, ps);
-	std::shared_ptr<Material> mat3 = std::make_shared<Material>(red, vs, combined);
 	std::shared_ptr<Material> normalMat = std::make_shared<Material>(none, vs, normalps);
 	std::shared_ptr<Material> uvMat = std::make_shared<Material>(none, vs, uvps);
 	std::shared_ptr<Material> customMat = std::make_shared<Material>(none, vs, custom);
 
-	materials.insert(materials.end(), { mat1, mat2, mat3, normalMat, uvMat, customMat });
+	std::shared_ptr<Material> bamboo = std::make_shared<Material>(none, vs, ps);
+	bamboo->AddSampler("BasicSampler", samplerState);
+	bamboo->AddTextureSRV("Albedo", bambooTexture.Albedo);
+	bamboo->AddTextureSRV("NormalMap", bambooTexture.Normal);
+	bamboo->AddTextureSRV("RoughnessMap", bambooTexture.Roughness);
+	bamboo->AddTextureSRV("MetalnessMap", bambooTexture.Metallic);
 
-	mat1->AddTextureSRV("SurfaceTexture", woodTexture);
-	mat1->AddTextureSRV("NormalMap", woodTextureNormal);
-	mat1->AddSampler("BasicSampler", samplerState);
-	mat2->AddTextureSRV("SurfaceTexture", rockyTexture);
-	mat2->AddTextureSRV("NormalMap", rockyTextureNormal);
-	mat2->AddSampler("BasicSampler", samplerState);
-	mat3->AddTextureSRV("TextureA", woodTexture);
-	mat3->AddTextureSRV("TextureB", stainDecal);
-	mat3->AddSampler("BasicSampler", samplerState);
+	std::shared_ptr<Material> chip = std::make_shared<Material>(none, vs, ps);
+	chip->AddSampler("BasicSampler", samplerState);
+	chip->AddTextureSRV("Albedo", chipTexture.Albedo);
+	chip->AddTextureSRV("NormalMap", chipTexture.Normal);
+	chip->AddTextureSRV("RoughnessMap", chipTexture.Roughness);
+	chip->AddTextureSRV("MetalnessMap", chipTexture.Metallic);
+
+	std::shared_ptr<Material> metalPlate = std::make_shared<Material>(none, vs, ps);
+	metalPlate->AddSampler("BasicSampler", samplerState);
+	metalPlate->AddTextureSRV("Albedo", metalPlateTexture.Albedo);
+	metalPlate->AddTextureSRV("NormalMap", metalPlateTexture.Normal);
+	metalPlate->AddTextureSRV("RoughnessMap", metalPlateTexture.Roughness);
+	metalPlate->AddTextureSRV("MetalnessMap", metalPlateTexture.Metallic);
+
+	std::shared_ptr<Material> rock = std::make_shared<Material>(none, vs, ps);
+	rock->AddSampler("BasicSampler", samplerState);
+	rock->AddTextureSRV("Albedo", rockTexture.Albedo);
+	rock->AddTextureSRV("NormalMap", rockTexture.Normal);
+	rock->AddTextureSRV("RoughnessMap", rockTexture.Roughness);
+	rock->AddTextureSRV("MetalnessMap", rockTexture.Metallic);
+
+	
+
+	materials.insert(materials.end(), { bamboo, chip, metalPlate, rock, normalMat, uvMat, customMat });
+
+	//mat1->AddTextureSRV("SurfaceTexture", woodTexture);
+	//mat1->AddTextureSRV("NormalMap", woodTextureNormal);
+	//mat1->AddSampler("BasicSampler", samplerState);
+	//mat2->AddTextureSRV("SurfaceTexture", rockyTexture);
+	//mat2->AddTextureSRV("NormalMap", rockyTextureNormal);
+	//mat2->AddSampler("BasicSampler", samplerState);
+	//mat3->AddTextureSRV("TextureA", woodTexture);
+	//mat3->AddTextureSRV("TextureB", stainDecal);
+	//mat3->AddSampler("BasicSampler", samplerState);
 				
 
-	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, mat1));
-	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, mat1));
-	entities.push_back(std::make_shared<Game_Entity>(helixMesh, mat2));
-	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, mat2));
-	entities.push_back(std::make_shared<Game_Entity>(torusMesh, mat1));
-	entities.push_back(std::make_shared<Game_Entity>(quadMesh, mat2));
-	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, mat2));
+	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, bamboo));
+	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, chip));
+	entities.push_back(std::make_shared<Game_Entity>(helixMesh, metalPlate));
+	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, rock));
+	entities.push_back(std::make_shared<Game_Entity>(torusMesh, metalPlate));
+	entities.push_back(std::make_shared<Game_Entity>(quadMesh, chip));
+	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, chip));
 
 	entities.push_back(std::make_shared<Game_Entity>(cubeMeshNormal, normalMat));
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMeshNormal, normalMat));
@@ -353,8 +394,7 @@ void Game::GenerateLights()
 	spot1.Color = XMFLOAT3(0, 0, 1);
 	spot1.Intensity = 5.0f;
 	spot1.Range = 5.0f;
-	spot1.SpotOuterAngle = XMConvertToRadians(30.0f);
-	spot1.SpotInnerAngle = XMConvertToRadians(20.0f);
+	spot1.SpotFalloff = 1.0f;
 	lights.push_back(spot1);
 
 }
@@ -560,8 +600,7 @@ void Game::BuildUI()
 
 				if (lights[i].Type == LIGHT_TYPE_SPOT)
 				{
-					ImGui::DragFloat("Inner Angle", &lights[i].SpotInnerAngle, 0.01f, 0.0f, XM_PI);
-					ImGui::DragFloat("Outer Angle", &lights[i].SpotOuterAngle, 0.01f, 0.0f, XM_PI);
+					ImGui::DragFloat("Fall Off", &lights[i].SpotFalloff, 0.01f, 0.0f, XM_PI);
 				}
 			}
 			ImGui::PopID();

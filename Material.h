@@ -14,7 +14,6 @@ public:
         DirectX::XMFLOAT4 colorTint,
         std::shared_ptr<SimpleVertexShader> vs,
         std::shared_ptr<SimplePixelShader> ps,
-        float roughness = 0.0f,
         DirectX::XMFLOAT2 uvScale = DirectX::XMFLOAT2(1.0f, 1.0f),
         DirectX::XMFLOAT2 uvOffset = DirectX::XMFLOAT2(0.0f, 0.0f));
 
@@ -22,7 +21,6 @@ public:
     DirectX::XMFLOAT4 GetColorTint() const;
     std::shared_ptr<SimpleVertexShader> GetVertexShader();
     std::shared_ptr<SimplePixelShader> GetPixelShader();
-    float GetRoughness();
     DirectX::XMFLOAT2 GetUVScale();
     DirectX::XMFLOAT2 GetUVOffset();
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetTextureSRV(std::string name);
@@ -35,7 +33,6 @@ public:
     void SetVertexShader(std::shared_ptr<SimpleVertexShader> newShader);
     void SetPixelShader(std::shared_ptr<SimplePixelShader> newShader);
     void SetUVScale(DirectX::XMFLOAT2 scale);
-    void SetRoughness(float rough);
     void SetUVOffset(DirectX::XMFLOAT2 offset);
 
     void PrepareMaterial(std::shared_ptr<Transform> transform, std::shared_ptr<Camera> camera);
@@ -49,7 +46,6 @@ private:
 
     DirectX::XMFLOAT2 uvOffset;
     DirectX::XMFLOAT2 uvScale;
-    float roughness;
 
     std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> textureSRVs;
     std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11SamplerState>> samplers;

@@ -16,7 +16,6 @@ struct Light
 	float				Intensity;
 	DirectX::XMFLOAT3	Color;		// 48 bytes
 
-	float				SpotInnerAngle;
-	float				SpotOuterAngle;
-	DirectX::XMFLOAT2	Padding;	// 64 bytes
+	float				SpotFalloff;
+	DirectX::XMFLOAT3	Padding;	// 64 bytes
 };

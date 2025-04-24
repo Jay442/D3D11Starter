@@ -10,6 +10,7 @@
 #include "WICTextureLoader.h" 
 #include "Light.h"
 #include "Sky.h"
+#include "PBRTexture.h"
 
 class Game
 {
@@ -37,6 +38,8 @@ private:
 	void GenerateLights();
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> LoadTexture(const std::wstring& path);
+	PBRTexture LoadPBRMaterial(const std::wstring& basePath, const std::wstring& materialName);
 
 	// Note the usage of ComPtr below
 	//  - This is a smart pointer for objects that abide by the

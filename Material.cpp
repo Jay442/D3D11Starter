@@ -6,7 +6,6 @@ Material::Material(
     DirectX::XMFLOAT4 colorTint,
     std::shared_ptr<SimpleVertexShader> vs,
     std::shared_ptr<SimplePixelShader> ps,
-	float rough,
 	DirectX::XMFLOAT2 uvScale,
 	DirectX::XMFLOAT2 uvOffset)
 
@@ -14,7 +13,6 @@ Material::Material(
 	colorTint(colorTint),
     vs(vs),
     ps(ps),
-	roughness(rough),
 	uvOffset(uvOffset),
 	uvScale(uvScale)
 
@@ -23,7 +21,6 @@ Material::Material(
 DirectX::XMFLOAT4 Material::GetColorTint() const { return colorTint; }
 std::shared_ptr<SimpleVertexShader> Material::GetVertexShader() { return vs; }
 std::shared_ptr<SimplePixelShader> Material::GetPixelShader() { return ps; }
-float Material::GetRoughness(){ return roughness; }
 DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Material::GetTextureSRV(std::string name)
@@ -59,7 +56,6 @@ void Material::SetColorTint(DirectX::XMFLOAT4 newTint) { colorTint = newTint; }
 void Material::SetVertexShader(std::shared_ptr<SimpleVertexShader> newShader) { vs = newShader; }
 void Material::SetPixelShader(std::shared_ptr<SimplePixelShader> newShader) { ps = newShader; }
 void Material::SetUVScale(DirectX::XMFLOAT2 scale) { uvScale = scale; }
-void Material::SetRoughness(float rough) { roughness = rough; }
 void Material::SetUVOffset(DirectX::XMFLOAT2 offset) { uvOffset = offset; }
 
 void Material::PrepareMaterial(std::shared_ptr<Transform> transform, std::shared_ptr<Camera> camera)
@@ -74,7 +70,6 @@ void Material::PrepareMaterial(std::shared_ptr<Transform> transform, std::shared
 	vs->CopyAllBufferData();
 
 	ps->SetFloat4("colorTint", colorTint);
-	ps->SetFloat("roughness", roughness);
 	ps->SetFloat2("uvScale", uvScale);
 	ps->SetFloat2("uvOffset", uvOffset);
 	ps->SetFloat3("cameraPosition", camera->GetTransform().GetPosition());
