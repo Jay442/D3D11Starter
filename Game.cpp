@@ -304,9 +304,9 @@ void Game::CreateGeometry()
 
 	entities.push_back(std::make_shared<Game_Entity>(cubeMesh, chip));
 	entities.push_back(std::make_shared<Game_Entity>(cylinderMesh, metalPlate));
-	entities.push_back(std::make_shared<Game_Entity>(helixMesh, chip));
+	entities.push_back(std::make_shared<Game_Entity>(helixMesh, rock));
 	entities.push_back(std::make_shared<Game_Entity>(sphereMesh, bamboo));
-	entities.push_back(std::make_shared<Game_Entity>(torusMesh, metalPlate));
+	entities.push_back(std::make_shared<Game_Entity>(torusMesh, rock));
 	entities.push_back(std::make_shared<Game_Entity>(quadMesh, chip));
 	entities.push_back(std::make_shared<Game_Entity>(quad2sidedMesh, bamboo));
 
