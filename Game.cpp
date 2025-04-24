@@ -348,7 +348,7 @@ void Game::CreateGeometry()
 	entities[19]->GetTransform()->MoveAbsolute(6, 5, 0);
 	entities[20]->GetTransform()->MoveAbsolute(9, 5, 0);
 
-	ambientColor = XMFLOAT3(1.0f, 0.82f, 0.86f);
+	ambientColor = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
 void Game::GenerateLights()
