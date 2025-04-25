@@ -1,6 +1,6 @@
-
-
 #include "ShaderStructs.hlsli"
+
+
 
 cbuffer ExternalData : register(b0)
 {
@@ -8,7 +8,9 @@ cbuffer ExternalData : register(b0)
     matrix worldInvTrans;
     matrix view;
     matrix projection;
-    //float4 colorTint;
+    
+    matrix shadowView;
+    matrix shadowProjection;
 };
 // --------------------------------------------------------
 // The entry point (main method) for our vertex shader
@@ -34,7 +36,8 @@ VertexToPixel main( VertexShaderInput input )
     output.tangent = normalize(mul((float3x3) world, input.tangent));
     output.worldPos = mul(world, float4(input.localPosition, 1.0f)).xyz;
 	
-
+    matrix shadowWVP = mul(shadowProjection, mul(shadowView, world));
+    output.shadowPos = mul(shadowWVP, float4(input.localPosition, 1.0f));
 	// Whatever we return will make its way through the pipeline to the
 	// next programmable stage we're using (the pixel shader for now)
 	return output;

@@ -2,10 +2,12 @@
 #include "Lighting.hlsli"
 
 SamplerState BasicSampler : register(s0); // "s" registers for samplers
+SamplerComparisonState ShadowSampler : register(s1);
 Texture2D Albedo : register(t0);
 Texture2D NormalMap : register(t1);
 Texture2D RoughnessMap : register(t2);
 Texture2D MetalnessMap : register(t3);
+Texture2D ShadowMap : register(t4);
 
 cbuffer ExternalData : register(b0)
 {
@@ -19,7 +21,29 @@ cbuffer ExternalData : register(b0)
     float roughness;
     float2 uvScale;
     float2 uvOffset;
+    float2 shadowMapSize;
 };
+
+float PCFSample(float2 uv, float compareDepth, float2 texelSize)
+{
+    float shadow = 0.0f;
+    const int range = 2; 
+    
+    for (int y = -range; y <= range; y++)
+    {
+        for (int x = -range; x <= range; x++)
+        {
+            shadow += ShadowMap.SampleCmpLevelZero(
+                ShadowSampler,
+                uv + float2(x, y) * texelSize,
+                compareDepth).r;
+        }
+    }
+    
+    // Normalize by number of samples
+    float samples = (range * 2 + 1) * (range * 2 + 1);
+    return shadow / samples;
+}
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
@@ -48,7 +72,13 @@ float4 main(VertexToPixel input) : SV_TARGET
     // because of linear texture sampling, so we lerp the specular color to match
     float3 specularColor = lerp(F0_NON_METAL, surfaceColor.rgb, metalness);
     
-    float3 viewDir = normalize(cameraPosition - input.worldPos);
+    float2 shadowUV = input.shadowPos.xy / input.shadowPos.w * 0.5f + 0.5f;
+    shadowUV.y = 1.0f - shadowUV.y;
+    
+    float depthFromLight = input.shadowPos.z / input.shadowPos.w;
+
+    float2 texel = 1.0f / shadowMapSize;
+    float shadowAmount = PCFSample(shadowUV, depthFromLight, texel);
     
     float3 totalLight = ambientColor * surfaceColor;
     
@@ -61,7 +91,8 @@ float4 main(VertexToPixel input) : SV_TARGET
         switch (lights[i].Type)
         {
             case LIGHT_TYPE_DIRECTIONAL:
-                totalLight += CalculateDirectionalLight(light, input.normal, input.worldPos, cameraPosition, roughness, metalness, surfaceColor, specularColor);
+                float3 dirLight = CalculateDirectionalLight(light, input.normal, input.worldPos, cameraPosition, roughness, metalness, surfaceColor, specularColor);
+                totalLight += (dirLight * shadowAmount);
                 break;
 
             case LIGHT_TYPE_POINT:

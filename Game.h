@@ -36,6 +36,8 @@ private:
 	//void LoadShaders();
 	void CreateGeometry();
 	void GenerateLights();
+	void GenerateShadows();
+	void RenderShadowMap();
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> LoadTexture(const std::wstring& path);
@@ -72,5 +74,17 @@ private:
 	std::vector<std::shared_ptr<Material>> materials;
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
+
+	const float shadowMapResolution = 2048.0f;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> shadowTexture;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> shadowDSV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shadowSRV;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> shadowRasterizer;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> shadowSampler;
+	DirectX::XMFLOAT4X4 lightViewMatrix;
+	DirectX::XMFLOAT4X4 lightProjectionMatrix;
+	std::shared_ptr<DirectX::XMFLOAT4X4> shadowView;
+	std::shared_ptr<DirectX::XMFLOAT4X4> shadowProjection;
+	std::shared_ptr<SimpleVertexShader> shadowVS;
 };
 
