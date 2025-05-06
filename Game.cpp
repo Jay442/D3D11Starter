@@ -50,32 +50,7 @@ void Game::Initialize()
 		// geometric primitives (points, lines or triangles) we want to draw.  
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
 		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		// Ensure the pipeline knows how to interpret all the numbers stored in
-		// the vertex buffer. For this course, all of your vertices will probably
-		// have the same layout, so we can just set this once at startup.
-		//Graphics::Context->IASetInputLayout(inputLayout.Get());
-
-		// Set the active vertex and pixel shaders
-		//  - Once you start applying different shaders to different objects,
-		//    these calls will need to happen multiple times per frame
-		//Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
-		//Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
 	}
-
-	//unsigned int size = sizeof(VertexShaderData);
-	//size = (size + 15) / 16 * 16;
-	//
-	//D3D11_BUFFER_DESC cbDesc = {};
-	//cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	//cbDesc.ByteWidth = size;
-	//cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	//cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-	//cbDesc.MiscFlags = 0;
-	//cbDesc.StructureByteStride = 0;
-
-	//Graphics::Device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
-	//Graphics::Context->VSSetConstantBuffers(0, 1, vsConstantBuffer.GetAddressOf());
 
 	cameras.push_back(std::make_shared<Camera>(
 		Window::AspectRatio(),
@@ -113,6 +88,10 @@ void Game::Initialize()
 	activeCameraIndex = 0;
 
 	GenerateShadows();
+
+	// Post Processing
+	blurOn = true;
+	blurRadius = 5;
 }
 
 
@@ -183,7 +162,6 @@ void Game::CreateGeometry()
 		Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
 	shadowVS = std::make_shared<SimpleVertexShader>(
 		Graphics::Device, Graphics::Context, FixPath(L"ShadowVS.cso").c_str());
-
 
 	// Sampler Loading 
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState;
@@ -365,6 +343,26 @@ void Game::CreateGeometry()
 	entities[20]->GetTransform()->MoveAbsolute(9, 5, 0);
 
 	ambientColor = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	//Post Processing 
+	fullscreenVS = std::make_shared<SimpleVertexShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"FullscreenVS.cso").c_str());
+	blurPS = std::make_shared<SimplePixelShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"BlurPS.cso").c_str());
+
+	pixelizePS = std::make_shared<SimplePixelShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"PixelizePS.cso").c_str());
+
+	PostProcessingReSize();
+
+	// Sampler state for post processing
+	D3D11_SAMPLER_DESC ppSampDesc = {};
+	ppSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	ppSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	ppSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	ppSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	ppSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	Graphics::Device->CreateSamplerState(&ppSampDesc, ppSampler.GetAddressOf());
 }
 
 void Game::GenerateLights()
@@ -522,6 +520,49 @@ void Game::RenderShadowMap()
 	Graphics::Context->RSSetViewports(1, &viewport);
 	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(),
 		Graphics::DepthBufferDSV.Get());
+}
+
+void Game::PostProcessingReSize()
+{
+	ppSRV.Reset();
+	ppRTV.Reset();
+
+	// Describe the texture we're creating
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	textureDesc.Width = (unsigned int)(Window::Width());
+	textureDesc.Height = (unsigned int)(Window::Height());
+	textureDesc.ArraySize = 1;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE; 
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	textureDesc.MipLevels = 1;
+	textureDesc.MiscFlags = 0;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+
+	// Create the resource (no need to track it after the views are created below)
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> ppTexture;
+	Graphics::Device->CreateTexture2D(&textureDesc, 0, ppTexture.GetAddressOf());
+
+	// Create the Render Target View
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format = textureDesc.Format;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+	Graphics::Device->CreateRenderTargetView(
+		ppTexture.Get(),
+		&rtvDesc,
+		ppRTV.ReleaseAndGetAddressOf());
+
+	// Create the Shader Resource View
+	// By passing it a null description for the SRV, we
+	// get a "default" SRV that has access to the entire resource
+	Graphics::Device->CreateShaderResourceView(
+		ppTexture.Get(),
+		0,
+		ppSRV.ReleaseAndGetAddressOf());
 }
 
 // --------------------------------------------------------
@@ -750,6 +791,14 @@ void Game::BuildUI()
 		}
 	}
 
+	if (ImGui::CollapsingHeader("Post Processing"))
+	{
+		ImGui::Checkbox("Enable Blur", &blurOn);
+		if (blurOn)
+		{
+			ImGui::SliderInt("Blur Radius", &blurRadius, 1, 20);
+		}
+	}
 
 	ImGui::End();
 }
@@ -770,6 +819,13 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 	RenderShadowMap();
+
+	if (blurOn)
+	{
+		const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		Graphics::Context->ClearRenderTargetView(ppRTV.Get(), clearColor);
+		Graphics::Context->OMSetRenderTargets(1, ppRTV.GetAddressOf(), Graphics::DepthBufferDSV.Get());
+	}
 	
 	for (auto& e : entities)
 	{
@@ -777,7 +833,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
 		ps->SetShaderResourceView("ShadowMap", shadowSRV);
 		ps->SetSamplerState("ShadowSampler", shadowSampler);
-		ps->SetFloat2("shadowMapSize", XMFLOAT2(shadowMapResolution, shadowMapResolution));
+		ps->SetFloat2("shadowMapSize", XMFLOAT2(static_cast<float>(shadowMapResolution), static_cast<float>(shadowMapResolution)));;
 
 		vs->SetMatrix4x4("shadowView", *shadowView);
 		vs->SetMatrix4x4("shadowProjection", *shadowProjection);
@@ -791,6 +847,33 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 
 	sky->Draw(activeCamera);
+
+	if (blurOn)
+	{
+		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+
+		// Turn OFF vertex and index buffers since we'll be using the
+		// full-screen triangle trick
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+		ID3D11Buffer* nothing = 0;
+		Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
+		Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
+
+		fullscreenVS->SetShader();
+		blurPS->SetShader();
+
+		blurPS->SetShaderResourceView("Pixels", ppSRV);
+		blurPS->SetSamplerState("ClampSampler", ppSampler);
+
+		blurPS->SetInt("blurRadius", blurRadius);
+		blurPS->SetFloat("pixelWidth", 1.0f / Window::Width());
+		blurPS->SetFloat("pixelHeight", 1.0f / Window::Height());
+		blurPS->CopyAllBufferData();
+
+		// Perform the draw - Just a single triangle!
+		Graphics::Context->Draw(3, 0);
+	}
 
 	ID3D11ShaderResourceView* nullSRVs[16] = {};
 	Graphics::Context->PSSetShaderResources(0, 16, nullSRVs);

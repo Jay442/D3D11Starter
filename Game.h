@@ -38,6 +38,7 @@ private:
 	void GenerateLights();
 	void GenerateShadows();
 	void RenderShadowMap();
+	void PostProcessingReSize();
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> LoadTexture(const std::wstring& path);
@@ -75,7 +76,7 @@ private:
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
 
-	const float shadowMapResolution = 2048.0f;
+	const UINT shadowMapResolution = 2048;
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> shadowTexture;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> shadowDSV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shadowSRV;
@@ -86,5 +87,20 @@ private:
 	std::shared_ptr<DirectX::XMFLOAT4X4> shadowView;
 	std::shared_ptr<DirectX::XMFLOAT4X4> shadowProjection;
 	std::shared_ptr<SimpleVertexShader> shadowVS;
+
+	//Post Processing
+	std::shared_ptr<SimplePixelShader> blurPS;
+	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+
+	// Resources that are shared among all post processes
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> ppSampler;
+	std::shared_ptr<SimpleVertexShader> ppVS;
+
+	// Resources that are tied to a particular post process
+	std::shared_ptr<SimplePixelShader> ppPS;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> ppRTV; // For rendering
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ppSRV; // For sampling
+	bool blurOn;
+	int blurRadius;
 };
 
