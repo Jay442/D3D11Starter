@@ -39,6 +39,7 @@ private:
 	void GenerateShadows();
 	void RenderShadowMap();
 	void PostProcessingReSize();
+	void CreateRenderTarget(Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv, Microsoft::WRL::ComPtr <ID3D11ShaderResourceView>& srv);
 	void ImGuiUpdate(float deltaTime);
 	void BuildUI();
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> LoadTexture(const std::wstring& path);
@@ -88,7 +89,7 @@ private:
 	std::shared_ptr<DirectX::XMFLOAT4X4> shadowProjection;
 	std::shared_ptr<SimpleVertexShader> shadowVS;
 
-	//Post Processing
+	//Post Processing Fields
 	std::shared_ptr<SimplePixelShader> blurPS;
 	std::shared_ptr<SimpleVertexShader> fullscreenVS;
 
@@ -98,9 +99,17 @@ private:
 
 	// Resources that are tied to a particular post process
 	std::shared_ptr<SimplePixelShader> ppPS;
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> ppRTV; // For rendering
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ppSRV; // For sampling
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurRTV; // For rendering
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurSRV; // For sampling
 	bool blurOn;
 	int blurRadius;
+
+	std::shared_ptr<SimplePixelShader> pixelizePS;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> pixelizeRTV; // For rendering
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> pixelizeSRV; // For sampling
+	bool pixelizeOn = true;
+	float pixelSize = 0.02f;
+
+	std::shared_ptr<SimplePixelShader> copyPS;
 };
 

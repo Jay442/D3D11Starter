@@ -353,6 +353,9 @@ void Game::CreateGeometry()
 	pixelizePS = std::make_shared<SimplePixelShader>(
 		Graphics::Device, Graphics::Context, FixPath(L"PixelizePS.cso").c_str());
 
+	copyPS = std::make_shared<SimplePixelShader>(
+		Graphics::Device, Graphics::Context, FixPath(L"CopyPS.cso").c_str());
+
 	PostProcessingReSize();
 
 	// Sampler state for post processing
@@ -524,15 +527,26 @@ void Game::RenderShadowMap()
 
 void Game::PostProcessingReSize()
 {
-	ppSRV.Reset();
-	ppRTV.Reset();
+	blurSRV.Reset();
+	blurRTV.Reset();
+	pixelizeSRV.Reset();
+	pixelizeRTV.Reset();
 
-	// Describe the texture we're creating
+	CreateRenderTarget(blurRTV, blurSRV);
+	CreateRenderTarget(pixelizeRTV, pixelizeSRV);
+}
+
+void Game::CreateRenderTarget(Microsoft::WRL::ComPtr<ID3D11RenderTargetView>& rtv,
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& srv)
+{
+	rtv.Reset();
+	srv.Reset();
+
 	D3D11_TEXTURE2D_DESC textureDesc = {};
 	textureDesc.Width = (unsigned int)(Window::Width());
 	textureDesc.Height = (unsigned int)(Window::Height());
 	textureDesc.ArraySize = 1;
-	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE; 
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	textureDesc.MipLevels = 1;
@@ -554,7 +568,7 @@ void Game::PostProcessingReSize()
 	Graphics::Device->CreateRenderTargetView(
 		ppTexture.Get(),
 		&rtvDesc,
-		ppRTV.ReleaseAndGetAddressOf());
+		rtv.ReleaseAndGetAddressOf());
 
 	// Create the Shader Resource View
 	// By passing it a null description for the SRV, we
@@ -562,7 +576,7 @@ void Game::PostProcessingReSize()
 	Graphics::Device->CreateShaderResourceView(
 		ppTexture.Get(),
 		0,
-		ppSRV.ReleaseAndGetAddressOf());
+		srv.ReleaseAndGetAddressOf());
 }
 
 // --------------------------------------------------------
@@ -793,6 +807,9 @@ void Game::BuildUI()
 
 	if (ImGui::CollapsingHeader("Post Processing"))
 	{
+		ImGui::Text("Pixelization");
+		ImGui::SliderFloat("Pixel Size", &pixelSize, 0.002f, 0.1f);
+
 		ImGui::Checkbox("Enable Blur", &blurOn);
 		if (blurOn)
 		{
@@ -820,12 +837,9 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 	RenderShadowMap();
 
-	if (blurOn)
-	{
-		const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-		Graphics::Context->ClearRenderTargetView(ppRTV.Get(), clearColor);
-		Graphics::Context->OMSetRenderTargets(1, ppRTV.GetAddressOf(), Graphics::DepthBufferDSV.Get());
-	}
+	const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	Graphics::Context->ClearRenderTargetView(blurRTV.Get(), clearColor);
+	Graphics::Context->OMSetRenderTargets(1, blurRTV.GetAddressOf(), Graphics::DepthBufferDSV.Get());
 	
 	for (auto& e : entities)
 	{
@@ -845,35 +859,92 @@ void Game::Draw(float deltaTime, float totalTime)
 		e->Draw(activeCamera);
 
 	}
-
 	sky->Draw(activeCamera);
+
+	ID3D11RenderTargetView* nullRTV = nullptr;
+	ID3D11DepthStencilView* nullDSV = nullptr;
+	Graphics::Context->OMSetRenderTargets(1, &nullRTV, nullDSV);
+	fullscreenVS->SetShader();
+
+	ID3D11ShaderResourceView* currentSRV = blurSRV.Get();
+
+	if (pixelizeOn)
+	{
+		Graphics::Context->ClearRenderTargetView(pixelizeRTV.Get(), clearColor);
+		Graphics::Context->OMSetRenderTargets(1, pixelizeRTV.GetAddressOf(), nullptr);
+
+		ID3D11ShaderResourceView* nullSRV = nullptr;
+		Graphics::Context->PSSetShaderResources(0, 1, &nullSRV);
+
+		pixelizePS->SetShader();
+		pixelizePS->SetShaderResourceView("Pixels", currentSRV);
+		pixelizePS->SetSamplerState("ClampSampler", ppSampler.Get());
+
+		XMFLOAT2 actualPixelSize(
+			floor(pixelSize * Window::Width()),
+			floor(pixelSize * Window::Height())
+		);
+
+		pixelizePS->SetFloat2("pixelSize", actualPixelSize);
+		pixelizePS->SetFloat2("screenSize", XMFLOAT2(Window::Width(), Window::Height()));
+		pixelizePS->CopyAllBufferData();
+
+		Graphics::Context->Draw(3, 0);
+
+		currentSRV = pixelizeSRV.Get();
+
+		Graphics::Context->PSSetShaderResources(0, 1, &nullSRV);
+		Graphics::Context->OMSetRenderTargets(1, &nullRTV, nullptr);
+	}
 
 	if (blurOn)
 	{
-		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+		Graphics::Context->ClearRenderTargetView(blurRTV.Get(), clearColor);
+		Graphics::Context->OMSetRenderTargets(1, blurRTV.GetAddressOf(), nullptr);
 
-		// Turn OFF vertex and index buffers since we'll be using the
-		// full-screen triangle trick
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		ID3D11Buffer* nothing = 0;
-		Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
-		Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
+		ID3D11ShaderResourceView* nullSRV = nullptr;
+		Graphics::Context->PSSetShaderResources(0, 1, &nullSRV);
 
-		fullscreenVS->SetShader();
 		blurPS->SetShader();
+		blurPS->SetShaderResourceView("Pixels", currentSRV);
+		blurPS->SetSamplerState("ClampSampler", ppSampler.Get());
 
-		blurPS->SetShaderResourceView("Pixels", ppSRV);
-		blurPS->SetSamplerState("ClampSampler", ppSampler);
-
-		blurPS->SetInt("blurRadius", blurRadius);
+		blurPS->SetInt("blurRadius", blurRadius); 
 		blurPS->SetFloat("pixelWidth", 1.0f / Window::Width());
 		blurPS->SetFloat("pixelHeight", 1.0f / Window::Height());
 		blurPS->CopyAllBufferData();
 
-		// Perform the draw - Just a single triangle!
 		Graphics::Context->Draw(3, 0);
+
+		currentSRV = blurSRV.Get();
+
+		Graphics::Context->PSSetShaderResources(0, 1, &nullSRV);
+		Graphics::Context->OMSetRenderTargets(1, &nullRTV, nullptr);
 	}
+
+	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), nullptr);
+	fullscreenVS->SetShader();
+
+	if (pixelizeOn)
+	{
+
+		pixelizePS->SetShader();
+		pixelizePS->SetShaderResourceView("Pixels", currentSRV);
+		pixelizePS->SetSamplerState("ClampSampler", ppSampler.Get());
+
+		pixelizePS->SetFloat2("pixelSize", XMFLOAT2(1.0f, 1.0f));
+		pixelizePS->SetFloat2("screenSize", XMFLOAT2(Window::Width(), Window::Height()));
+		pixelizePS->CopyAllBufferData();
+	}
+	else
+	{
+		copyPS->SetShader();
+		copyPS->SetShaderResourceView("Pixels", currentSRV);
+		copyPS->SetSamplerState("ClampSampler", ppSampler.Get());
+		copyPS->CopyAllBufferData();
+	}
+
+	Graphics::Context->Draw(3, 0);
 
 	ID3D11ShaderResourceView* nullSRVs[16] = {};
 	Graphics::Context->PSSetShaderResources(0, 16, nullSRVs);
